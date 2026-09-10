@@ -1,0 +1,321 @@
+{
+  "title": "OceanLens India — real-data cache",
+  "demonstrationWindow": {
+    "start": "2023-09-25T00:00:00Z",
+    "end": "2023-10-05T00:00:00Z"
+  },
+  "windowLabel": "Historical demonstration window",
+  "region": {
+    "minLat": 8,
+    "maxLat": 20.5,
+    "minLon": 81,
+    "maxLon": 93
+  },
+  "regionName": "Bay of Bengal",
+  "viewId": "DEMO-OCN-2023-0925-BB",
+  "generatedAt": "2026-09-10T11:19:09.588Z",
+  "counts": {
+    "argoProfiles": 28,
+    "incoisProfiles": 19,
+    "delayedModeProfiles": 28,
+    "modelTimestamps": 11,
+    "modelDepthsSlice": 14,
+    "modelColumns": 28,
+    "currentsAvailable": true
+  },
+  "sources": [
+    {
+      "id": "argo.incois",
+      "datasetName": "Argo global profiles — INCOIS & partner floats, Bay of Bengal",
+      "originator": "International Argo Program; INCOIS (Indian Argo Project) and partners",
+      "status": "REAL_CACHED",
+      "sourceUrl": "https://data-argo.ifremer.fr/dac/",
+      "sourceFiles": [
+        "D1902669_002.nc",
+        "D2903891_002.nc",
+        "D4903775_002.nc",
+        "D4903776_002.nc",
+        "D5907082_002.nc",
+        "D5907083_002.nc",
+        "D6990608_001.nc",
+        "D6990608_002.nc",
+        "D6990608_003.nc",
+        "D6990608_004.nc",
+        "D6990608_005.nc",
+        "D6990608_006.nc",
+        "D6990608_007.nc",
+        "D6990608_008.nc",
+        "D6990608_009.nc",
+        "D6990609_002.nc",
+        "D7901125_002.nc",
+        "D7901126_002.nc",
+        "D7901127_002.nc",
+        "D2902765_134.nc",
+        "D2902766_136.nc",
+        "D2902766_137.nc",
+        "D2902768_133.nc",
+        "D2902768_134.nc",
+        "D2902770_132.nc",
+        "D2902770_133.nc",
+        "D2902772_132.nc",
+        "D2902772_133.nc"
+      ],
+      "sourceFileUrls": [
+        "https://data-argo.ifremer.fr/dac/incois/1902669/profiles/D1902669_002.nc",
+        "https://data-argo.ifremer.fr/dac/incois/2903891/profiles/D2903891_002.nc",
+        "https://data-argo.ifremer.fr/dac/incois/4903775/profiles/D4903775_002.nc",
+        "https://data-argo.ifremer.fr/dac/incois/4903776/profiles/D4903776_002.nc",
+        "https://data-argo.ifremer.fr/dac/incois/5907082/profiles/D5907082_002.nc",
+        "https://data-argo.ifremer.fr/dac/incois/5907083/profiles/D5907083_002.nc",
+        "https://data-argo.ifremer.fr/dac/incois/6990608/profiles/D6990608_001.nc",
+        "https://data-argo.ifremer.fr/dac/incois/6990608/profiles/D6990608_002.nc",
+        "https://data-argo.ifremer.fr/dac/incois/6990608/profiles/D6990608_003.nc",
+        "https://data-argo.ifremer.fr/dac/incois/6990608/profiles/D6990608_004.nc",
+        "https://data-argo.ifremer.fr/dac/incois/6990608/profiles/D6990608_005.nc",
+        "https://data-argo.ifremer.fr/dac/incois/6990608/profiles/D6990608_006.nc",
+        "https://data-argo.ifremer.fr/dac/incois/6990608/profiles/D6990608_007.nc",
+        "https://data-argo.ifremer.fr/dac/incois/6990608/profiles/D6990608_008.nc",
+        "https://data-argo.ifremer.fr/dac/incois/6990608/profiles/D6990608_009.nc",
+        "https://data-argo.ifremer.fr/dac/incois/6990609/profiles/D6990609_002.nc",
+        "https://data-argo.ifremer.fr/dac/incois/7901125/profiles/D7901125_002.nc",
+        "https://data-argo.ifremer.fr/dac/incois/7901126/profiles/D7901126_002.nc",
+        "https://data-argo.ifremer.fr/dac/incois/7901127/profiles/D7901127_002.nc",
+        "https://data-argo.ifremer.fr/dac/csio/2902765/profiles/D2902765_134.nc",
+        "https://data-argo.ifremer.fr/dac/csio/2902766/profiles/D2902766_136.nc",
+        "https://data-argo.ifremer.fr/dac/csio/2902766/profiles/D2902766_137.nc",
+        "https://data-argo.ifremer.fr/dac/csio/2902768/profiles/D2902768_133.nc",
+        "https://data-argo.ifremer.fr/dac/csio/2902768/profiles/D2902768_134.nc",
+        "https://data-argo.ifremer.fr/dac/csio/2902770/profiles/D2902770_132.nc",
+        "https://data-argo.ifremer.fr/dac/csio/2902770/profiles/D2902770_133.nc",
+        "https://data-argo.ifremer.fr/dac/csio/2902772/profiles/D2902772_132.nc",
+        "https://data-argo.ifremer.fr/dac/csio/2902772/profiles/D2902772_133.nc"
+      ],
+      "retrievedAt": "2026-09-10T11:19:09.588Z",
+      "checksums": {
+        "csio_2902765_profiles_D2902765_134.nc": "750a98b33d592643dc0e32e45932d8c82521442bcb5881b945ecd5171f6a317f",
+        "csio_2902766_profiles_D2902766_136.nc": "0f7e4fa9e49f4e69e945234da197eccaa693603e33268b62eb38f326e95bdad1",
+        "csio_2902766_profiles_D2902766_137.nc": "0c3a4e93f393e765ff7fa22a4cef03e717ab4a8728325028b9a829d9144d6609",
+        "csio_2902768_profiles_D2902768_133.nc": "a07a032c58c538d82089178b352fe0c5ceebb36bc54249b4816b2921ff00c4fd",
+        "csio_2902768_profiles_D2902768_134.nc": "2f0aa5ded08afe493558670b313d7096eff4c73a008186da01aa0a72d57ceea8",
+        "csio_2902770_profiles_D2902770_132.nc": "4a6152ea1314658cf0b036c2831b91ea01d399888cae7cca1f2bc16b13f36647",
+        "csio_2902770_profiles_D2902770_133.nc": "938eddcc5267d4415654b37beb66ae54eaed29f062940d58c180f83cf306d673",
+        "csio_2902772_profiles_D2902772_132.nc": "2cb65003d39fb4120a08a1cf15ff306b3e53764c6d8bf107de221a0ff9e36ceb",
+        "csio_2902772_profiles_D2902772_133.nc": "2e81a011e3958bbd364634e244b62796a81c4979865061e4b81b3c7f18975937",
+        "incois_1902669_profiles_D1902669_002.nc": "fcba5cbe918c5d2dddcfce478451b028711d37d290bfeb2d93f5cd337b7effa0",
+        "incois_2903891_profiles_D2903891_002.nc": "76f08574dbdb4f86d86ba96f726a12574b2a80d1f2cdad534a8d4159d4886e23",
+        "incois_4903775_profiles_D4903775_002.nc": "49b7f7c8f03a2db344c8a2d87749e2d6aa49162b04861affcdefeede13d3a0c7",
+        "incois_4903776_profiles_D4903776_002.nc": "0d53378a88ba023b0a8e2c5dbf7859e2eb16d343276a3be38a1af8f53cc044d0",
+        "incois_5907082_profiles_D5907082_002.nc": "2816e687533c87eebdde3a77bf835c83d2327d2775d59d2ab8d7a0c1cc1202ee",
+        "incois_5907083_profiles_D5907083_002.nc": "8b73ca8a6c06ae43b8633c532a6e2cc02b94d700233291108bea689a99571103",
+        "incois_6990608_profiles_D6990608_001.nc": "9abe32cac42c6336d9230cd0a3973ca6706c1fbe1ced3f139a0f13de1a5e1671",
+        "incois_6990608_profiles_D6990608_002.nc": "24c722b5cb7ea56e38bd2bda1653319ef97aba82e5bca01ddfcebf43814731de",
+        "incois_6990608_profiles_D6990608_003.nc": "2d7810c6377469110ceb187762155b2a7c96314e59913b0e1e288f059c3e33f8",
+        "incois_6990608_profiles_D6990608_004.nc": "d333b34635e8ae6127c61b0858ac27f4ecdb517cc152bcb8f91b276d8c0b95f1",
+        "incois_6990608_profiles_D6990608_005.nc": "b2f6020552ed72da632c0376962ea03393aa5b2d82b9448f36519904c8c25d41",
+        "incois_6990608_profiles_D6990608_006.nc": "ae6df150bf574031c930d309ec98d7c2b5a1862c04416fd775ac5af5969635ab",
+        "incois_6990608_profiles_D6990608_007.nc": "e5bb1bb99d47f3fe72b27333c7ba2509f4249689058c00791c0de60070dfc59a",
+        "incois_6990608_profiles_D6990608_008.nc": "e49a37929f61a8078f1bc379881a323161fae58a19ac77911e022e997eebee6c",
+        "incois_6990608_profiles_D6990608_009.nc": "c53afa641cd54ad3d30bd6ebed1fb8ad725ac2a8dc28a5ac4ee0dbb53bf524f9",
+        "incois_6990609_profiles_D6990609_002.nc": "58490374da8ae51ab133d794ddc01b28b77761c6d09d37aabcacae90d321686b",
+        "incois_7901125_profiles_D7901125_002.nc": "b8306fa9f6f80a8c59320a7e40a91081c3516e31216dc0bb0d93d7216ef77f55",
+        "incois_7901126_profiles_D7901126_002.nc": "e3caa6844bac91f5bb7fda32b249f6912827d0909c6816962608a76bbbe1eefb",
+        "incois_7901127_profiles_D7901127_002.nc": "54ebf9fbace1d7c1e2fbbf969962392253a1d6da05881539cf1992f624c199cd"
+      },
+      "sourceVariables": [
+        "PRES",
+        "TEMP",
+        "PSAL",
+        "PRES_ADJUSTED",
+        "TEMP_ADJUSTED",
+        "PSAL_ADJUSTED",
+        "*_QC"
+      ],
+      "sourceUnits": {
+        "PRES": "decibar",
+        "TEMP": "degree_Celsius",
+        "PSAL": "psu (PSS-78)"
+      },
+      "coordinateSystem": "WGS84 lat/lon; pressure decibar converted to depth (m, positive down) via UNESCO 1983",
+      "temporal": {
+        "start": "2023-09-25T00:00:00Z",
+        "end": "2023-10-05T00:00:00Z",
+        "cadence": "per float cycle (~10 day), one profile per file"
+      },
+      "depth": {
+        "minM": 0,
+        "maxM": 2010,
+        "levels": "irregular, per float (37–242 usable levels)"
+      },
+      "spatial": {
+        "minLat": 8,
+        "maxLat": 20.5,
+        "minLon": 81,
+        "maxLon": 93,
+        "resolution": "irregular (float positions)"
+      },
+      "qcConvention": "Argo QC flag scale: 1 good, 2 probably good, 3 suspect, 4 bad, 5 changed, 8 interpolated, 9 missing. Delayed-mode (D) files use adjusted fields with their own QC.",
+      "transformations": [
+        "Selected profile files by ar_index_global_prof.txt filtered to the demo window and region",
+        "Per file, kept the N_PROF record with the most pressure levels (primary vertical sampling scheme)",
+        "Used *_ADJUSTED fields where DATA_MODE is D or A and adjusted values are present",
+        "Converted PRES (decibar) to depth (m) via UNESCO 1983, latitude-dependent",
+        "Dropped levels with PRES_QC = 4 (bad)",
+        "Mapped per-level QC to GOOD/PROBABLY_GOOD/SUSPECT/BAD; retained original per level",
+        "Sorted levels shallow-to-deep"
+      ],
+      "licence": "Argo data are freely available (https://argo.ucsd.edu). Please acknowledge the Argo Program and the national programmes that contribute floats.",
+      "caveats": [
+        "19 of 28 profiles are INCOIS (DATA_CENTRE = IN); the rest are China Argo (DATA_CENTRE = HZ).",
+        "All included profiles are delayed-mode (DATA_MODE = D) and use adjusted fields.",
+        "One profile (ARGO-4903776-2) has PROFILE_TEMP_QC = F: every level failed quality control. It is retained as a position/identity record with a BAD summary flag rather than hidden.",
+        "Float 4903775 cycle 2 reports no data above ~184 m (genuine instrument behaviour).",
+        "Duplicate-pressure levels are collapsed to keep each depth axis strictly ascending."
+      ]
+    },
+    {
+      "originator": "HYCOM Consortium / Naval Oceanographic Office (GOFS 3.1, GLBy0.08 expt_93.0)",
+      "status": "PRECOMPUTED_FROM_REAL",
+      "coordinateSystem": "WGS84 lat/lon on a 0.04° x 0.08° grid; depth (m, positive down), 40 z-levels",
+      "temporal": {
+        "start": "2023-09-25T00:00:00Z",
+        "end": "2023-10-05T00:00:00Z",
+        "cadence": "daily snapshot at 00:00 UTC (native archive is 3-hourly)"
+      },
+      "spatial": {
+        "minLat": 8,
+        "maxLat": 20.5,
+        "minLon": 81,
+        "maxLon": 93,
+        "resolution": "~NaN° in the slice cache; native in the column cache"
+      },
+      "qcConvention": "HYCOM analysis fields carry no per-cell QC; _FillValue -30000 marks land / below-bathymetry.",
+      "licence": "Approved for public release; distribution unlimited (per file global attributes).",
+      "id": "hycom.ts",
+      "datasetName": "HYCOM GOFS 3.1 temperature & salinity — Bay of Bengal subset",
+      "sourceUrl": "https://ncss.hycom.org/thredds/ncss/grid/GLBy0.08/expt_93.0/ts3z",
+      "sourceFiles": [
+        "ts_2023-09-25.nc",
+        "ts_2023-09-26.nc",
+        "ts_2023-09-27.nc",
+        "ts_2023-09-28.nc",
+        "ts_2023-09-29.nc",
+        "ts_2023-09-30.nc",
+        "ts_2023-10-01.nc",
+        "ts_2023-10-02.nc",
+        "ts_2023-10-03.nc",
+        "ts_2023-10-04.nc",
+        "ts_2023-10-05.nc"
+      ],
+      "retrievedAt": "2026-09-10T11:19:09.588Z",
+      "checksums": {
+        "ts_2023-09-25.nc": "6176af30f0fb4a25eee0949ba7b94e8c770bab32c0d61e559e114347404c39df",
+        "ts_2023-09-26.nc": "eecb094ac22cc9721ba09fedc1edcd4324a3e988283fc21b0ee43a59e05589b1",
+        "ts_2023-09-27.nc": "41366a4b11569504783c51d29ec771565da2d63d65c2f426481a14c63700f4fb",
+        "ts_2023-09-28.nc": "5c26f883af6dbe44bfafe0cad41280b436427b465fb648e2e72394d5a883738f",
+        "ts_2023-09-29.nc": "8e00b5e2310d62990a4b8f1c9a41687fefd238d2077d6418f7e969e69459fd16",
+        "ts_2023-09-30.nc": "a8b0ea425c78076dc0445c17ddedd963111c66455c13b6990cc4e69ed624ea2c",
+        "ts_2023-10-01.nc": "9adc75fba0758deffdddcc75be36372239b87cea2242bb92a9e9b0540b07b473",
+        "ts_2023-10-02.nc": "a85d44abc86ae3db002bef524c265717289c6c8cc226b2c9fd8f224efc2ce609",
+        "ts_2023-10-03.nc": "517755e4b63237fd62c5be2bba14ebcb7f57a06c5e4327da961c13cb9974e412",
+        "ts_2023-10-04.nc": "6ee0903069211189a85cda78c6278279e1e9541a1bcfa483323eec8b80c872f0",
+        "ts_2023-10-05.nc": "320b3bc9ea0cd7857ef2a6877cdbff794368574bd597e0d636a2735dce8fdd3e"
+      },
+      "sourceVariables": [
+        "water_temp",
+        "salinity"
+      ],
+      "sourceUnits": {
+        "water_temp": "degC",
+        "salinity": "psu"
+      },
+      "depth": {
+        "minM": 0,
+        "maxM": 1000,
+        "levels": "14 in slice cache; 40 native in column cache"
+      },
+      "transformations": [
+        "NCSS subset: bbox N20.5/S8/W81/E93, one file per day at 00:00 UTC, accept=netcdf (classic)",
+        "Unpacked short -> float via scale_factor 0.001, add_offset 20; _FillValue -30000 -> NaN",
+        "Slice cache: decimated horizontally by stride 3, kept 14 depth levels",
+        "Column cache: nearest native grid column at each observation position, all 40 depth levels, all timestamps",
+        "Depth already positive-down in source; no reorientation needed"
+      ],
+      "caveats": [
+        "Daily snapshots, not the observation instant. The true model-minus-observation time offset is computed and shown per collocation.",
+        "Slice cache is decimated for rendering; all statistics use the native-resolution column cache."
+      ]
+    },
+    {
+      "originator": "HYCOM Consortium / Naval Oceanographic Office (GOFS 3.1, GLBy0.08 expt_93.0)",
+      "status": "PRECOMPUTED_FROM_REAL",
+      "coordinateSystem": "WGS84 lat/lon on a 0.04° x 0.08° grid; depth (m, positive down), 40 z-levels",
+      "temporal": {
+        "start": "2023-09-25T00:00:00Z",
+        "end": "2023-10-05T00:00:00Z",
+        "cadence": "daily snapshot at 00:00 UTC (native archive is 3-hourly)"
+      },
+      "spatial": {
+        "minLat": 8,
+        "maxLat": 20.5,
+        "minLon": 81,
+        "maxLon": 93,
+        "resolution": "~NaN° in the slice cache; native in the column cache"
+      },
+      "qcConvention": "HYCOM analysis fields carry no per-cell QC; _FillValue -30000 marks land / below-bathymetry.",
+      "licence": "Approved for public release; distribution unlimited (per file global attributes).",
+      "id": "hycom.uv",
+      "datasetName": "HYCOM GOFS 3.1 u/v currents — Bay of Bengal subset",
+      "sourceUrl": "https://ncss.hycom.org/thredds/ncss/grid/GLBy0.08/expt_93.0/uv3z",
+      "sourceFiles": [
+        "uv_2023-09-25.nc",
+        "uv_2023-09-26.nc",
+        "uv_2023-09-27.nc",
+        "uv_2023-09-28.nc",
+        "uv_2023-09-29.nc",
+        "uv_2023-09-30.nc",
+        "uv_2023-10-01.nc",
+        "uv_2023-10-02.nc",
+        "uv_2023-10-03.nc",
+        "uv_2023-10-04.nc",
+        "uv_2023-10-05.nc"
+      ],
+      "retrievedAt": "2026-09-10T11:19:09.588Z",
+      "checksums": {
+        "uv_2023-09-25.nc": "a04dd4bbf2184fec88808ff4eca3a92d404a0c61f089f9638feb089d0633f60d",
+        "uv_2023-09-26.nc": "3718dbdfcd37a756259e5ad06a111d7196af0d8679d244b7288e4afe7846b9aa",
+        "uv_2023-09-27.nc": "9bf8d1b204a8c3e3502a32cb0f0517e0f4f09f2448e1fb5dfd76cd500c231836",
+        "uv_2023-09-28.nc": "4dd3eba78b989cf94fbb224e961fe289374fc34cef71630873c0f42470f213e5",
+        "uv_2023-09-29.nc": "3fb275ca383aced8b8542df83c5e7f844f0003ffd6f47c222b8af67265344a00",
+        "uv_2023-09-30.nc": "c141ed35ad2ee2c0247442563fad3c6cd294934ad0f50649ed8bff6dd80fcb54",
+        "uv_2023-10-01.nc": "9eecf3d7b8cdc33767cc89c071116a4bfcb25619a76e0aaa1212fdea376832e1",
+        "uv_2023-10-02.nc": "baf377599ca22307641a8dfd610f28ffd4bbd6cae77db6f30e3824aa985594d7",
+        "uv_2023-10-03.nc": "24b09bd4e105de26c877d91dde91bcbc85707d00a25d9316bb3f4ab15963212c",
+        "uv_2023-10-04.nc": "3399bba6b79131cf5b074956ba1b06f051cbdecef6ad021d4f7a57b95308ec80",
+        "uv_2023-10-05.nc": "c3dd8d951131af38d062813c7002d8e752ef979948bc01167b632f4099c9e117"
+      },
+      "sourceVariables": [
+        "water_u",
+        "water_v"
+      ],
+      "sourceUnits": {
+        "water_u": "m/s",
+        "water_v": "m/s"
+      },
+      "depth": {
+        "minM": 0,
+        "maxM": 1000,
+        "levels": "14 in slice cache; 40 native in column cache"
+      },
+      "transformations": [
+        "NCSS subset: bbox N20.5/S8/W81/E93, one file per day at 00:00 UTC, accept=netcdf (classic)",
+        "Unpacked short -> float via scale_factor 0.001, add_offset 20; _FillValue -30000 -> NaN",
+        "Slice cache: decimated horizontally by stride 3, kept 14 depth levels",
+        "Column cache: nearest native grid column at each observation position, all 40 depth levels, all timestamps",
+        "Depth already positive-down in source; no reorientation needed"
+      ],
+      "caveats": [
+        "Current speed shown is sqrt(u^2 + v^2) derived from the real u/v fields."
+      ]
+    }
+  ]
+}
