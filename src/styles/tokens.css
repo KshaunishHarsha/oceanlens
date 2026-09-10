@@ -1,0 +1,158 @@
+/* OceanLens India — design tokens.
+   Every value here is extracted from the Claude Design artboard
+   (`OceanLens India.dc.html`). No hex literal may appear anywhere else
+   in the codebase; if you need a colour, add or reuse a token.
+
+   The product is a single committed dark theme. A scientific operations
+   console has no light variant in the reference design, and inventing one
+   would break the palette's contrast relationships. */
+
+:root {
+  color-scheme: dark;
+
+  /* ---------------------------------------------------------------
+     Surfaces — deepest to raised
+     --------------------------------------------------------------- */
+  --surface-void: #060e17;        /* document body behind the app */
+  --surface-stage: #08111d;       /* app ground, 3D scene ground */
+  --surface-strip: #0a1523;       /* provenance strip, chart plot ground */
+  --surface-raised: #0b1725;      /* nav rail, command bar, inset cards */
+  --surface-panel: #0e1b2a;       /* left control rail, right evidence panel */
+  --surface-track: #101e2e;       /* slider/meter troughs */
+  --surface-hover: #13263a;       /* row and control hover */
+  --surface-selected: #17324b;    /* selected segment / active tab ground */
+
+  /* ---------------------------------------------------------------
+     Borders — subtle to prominent
+     --------------------------------------------------------------- */
+  --border-faint: #16283a;        /* table row rules, ramp outline */
+  --border-default: #1c3247;      /* panel dividers, control outlines */
+  --border-input: #23405a;        /* numeric fields, secondary buttons */
+  --border-hover: #2a4761;        /* control hover outline */
+  --border-land: #35566f;         /* coastline / landmass stroke */
+
+  /* ---------------------------------------------------------------
+     Text — primary to disabled
+     --------------------------------------------------------------- */
+  --text-primary: #e6eef5;
+  --text-secondary: #c3d2df;
+  --text-tertiary: #93a9bd;
+  --text-muted: #8a9eb2;
+  --text-label: #7b90a3;          /* SECTION CAPTIONS, axis labels */
+  --text-faint: #5e7488;
+  --text-disabled: #3a4e60;
+  --text-separator: #2f4457;      /* the "/" glyphs between breadcrumbs */
+
+  /* ---------------------------------------------------------------
+     Cyan — system accent AND the observation channel.
+     Observed data is always cyan. Never use it for modelled values.
+     --------------------------------------------------------------- */
+  --cyan: #4fc3d9;
+  --cyan-bright: #6fdcf0;         /* slider knobs, playhead, selection */
+  --cyan-hover: #7bdcec;
+  --cyan-tick: #9beaf8;           /* checkbox tick */
+  --cyan-on: #eaf8fb;             /* text on a cyan-filled surface */
+  --cyan-fill: #14607a;           /* primary button ground */
+  --cyan-fill-hover: #17708d;
+  --cyan-edge: #2b90ac;           /* active control outline */
+  --cyan-deep: #235a6b;           /* MODELED badge outline on the active row */
+
+  /* ---------------------------------------------------------------
+     Amber — the model channel. Modelled values are always amber.
+     --------------------------------------------------------------- */
+  --amber: #e0a94a;               /* model profile line */
+  --amber-deep: #c79b3c;
+  --amber-bright: #f0c35c;         /* isosurface, cursor readout value */
+
+  /* ---------------------------------------------------------------
+     Teal — QC good / verified-by-data status
+     --------------------------------------------------------------- */
+  --good: #3fa98a;
+  --good-edge: #24503f;
+  --good-fill: #0f241c;
+
+  /* ---------------------------------------------------------------
+     Warn — QC suspect, thresholds, caution
+     --------------------------------------------------------------- */
+  --warn: #c9932e;
+  --warn-edge: #5c4520;
+
+  /* ---------------------------------------------------------------
+     Coral — model/observation divergence, QC bad
+     --------------------------------------------------------------- */
+  --bad: #d2775e;
+  --bad-text: #e8b49f;
+  --bad-edge: #7a4433;
+  --bad-fill: #1d110d;
+  --bad-muted: #c9a192;
+  --bad-faint: #9c8478;
+
+  /* ---------------------------------------------------------------
+     Observation platform identity.
+     One colour per instrument class, stable across the whole product.
+     --------------------------------------------------------------- */
+  --platform-argo: #4fc3d9;
+  --platform-glider: #8fd3c0;
+  --platform-ctd: #c3d2df;
+  --platform-bgc: #b9a6d6;
+
+  /* ---------------------------------------------------------------
+     Scientific colour ramps.
+     Perceptually ordered, restrained, CVD-aware. Deliberately not rainbow.
+     Stops are mirrored in TypeScript (`domain/palettes.ts`) for canvas use;
+     these CSS forms are for legends, chips and colorbars.
+     --------------------------------------------------------------- */
+  --ramp-thermal: linear-gradient(90deg, #1b2a6b 0%, #1d5c8c 24%, #1f8c93 46%, #4fa88a 62%, #c79b3c 82%, #c4643c 100%);
+  --ramp-haline: linear-gradient(90deg, #16234f 0%, #1c4c7a 24%, #2c7f92 46%, #56a78e 64%, #9cc08a 83%, #d9d7a6 100%);
+  --ramp-speed: linear-gradient(90deg, #101a2e 0%, #1d4e6b 24%, #2e86a0 46%, #58b0b5 66%, #9ad1c4 84%, #e4ebd9 100%);
+  --ramp-algae: linear-gradient(90deg, #10231c 0%, #14453a 24%, #1c6b4f 46%, #3e9159 66%, #86b45c 84%, #d6d183 100%);
+
+  /* ---------------------------------------------------------------
+     Typography
+     --------------------------------------------------------------- */
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* The artboard is dense and deliberate: almost everything is 11–13px,
+     with tabular numerals so columns of measurements align. */
+  --fs-micro: 10.5px;   /* axis ticks, ramp ticks, dense metadata */
+  --fs-caption: 11px;   /* SECTION CAPTIONS, badges */
+  --fs-small: 11.5px;   /* control labels, secondary rows */
+  --fs-body: 12px;      /* default reading size */
+  --fs-base: 13px;      /* app root */
+  --fs-title: 14px;     /* product name */
+  --fs-metric: 17px;    /* RMSE / bias values */
+  --fs-record: 18px;    /* selected platform id */
+  --fs-display: 21px;   /* depth readout */
+
+  --ls-caption: 0.12em; /* SECTION CAPTION tracking */
+  --ls-badge: 0.06em;
+  --ls-wide: 0.1em;
+
+  /* ---------------------------------------------------------------
+     Layout — see docs/architecture.md.
+     Rails narrow below 1600px; the stage always flexes.
+     --------------------------------------------------------------- */
+  --rail-nav: 60px;
+  --bar-command: 58px;
+  --bar-provenance: 26px;
+  --rail-control: 338px;
+  --panel-evidence: 398px;
+  --rail-timeline: 106px;
+
+  --radius-sm: 2px;
+  --radius: 3px;
+  --radius-md: 4px;
+
+  --shadow-float: 0 6px 18px rgb(0 0 0 / 0.45);
+  --shadow-tooltip: 0 8px 24px rgb(0 0 0 / 0.45);
+}
+
+/* At the 1440x900 presentation size the full-width rails leave too little
+   stage. Approved narrowing: 338 -> 300 and 398 -> 360. */
+@media (max-width: 1599px) {
+  :root {
+    --rail-control: 300px;
+    --panel-evidence: 360px;
+  }
+}
