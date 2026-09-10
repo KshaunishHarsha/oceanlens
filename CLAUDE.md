@@ -1,0 +1,134 @@
+# OceanLens India — Claude Code working context
+
+> Maintained across sessions. Read this first; it should save you from re-reading the
+> Claude Design project or re-probing data endpoints.
+
+## What this is
+
+Smart India Hackathon 2026 project for **INCOIS**. A browser-native 3D ocean *evidence
+workspace*: for a given location, depth and time, show what the model predicts, what the
+instrument observed, and how well they agree.
+
+Not a dashboard. A scientific operations console for a government audience.
+
+## Status
+
+| | |
+|---|---|
+| Current phase | **Phase 0 — audit complete, awaiting approval** |
+| Phase order | 0 → 1 → 2 → 3 → **5** → **4** → 6 → 7 (5 before 4, deliberate) |
+| Repo state | Empty except docs. No package.json, no git, no source yet. |
+
+**Working agreement: one phase at a time.** Implement → run → test → visually verify against
+the Claude Design reference → document known issues → report → *wait for explicit approval*.
+No speculative cross-phase work.
+
+## Source of the design
+
+Claude Design project `02b36dfc-4d04-4d3e-8cc9-2252628d1e04`, read via the `DesignSync`
+tool (needs `/design-login` once per session).
+
+```
+OceanLens India.dc.html   canonical artboard, 1600x1000, 134 KB  <- layout/palette/copy authority
+support.js                Claude Design canvas runtime           <- DO NOT ship; spec only
+ocean-field.js            domain module (window.OceanField)      <- data/math authority
+ocean-scene.jsx           React scene, d3-geo + topojson
+profile-chart.jsx         React SVG depth profile
+timeline-rail.jsx         React playback rail
+screenshots/*.png         9 refs; full.png, scene.png, contrast.png, 01-states.png reviewed
+```
+
+`.jsx` files are plain React (`React.createElement`, no JSX syntax) with `module.exports`.
+They port to TS with little friction.
+
+## Locked decisions
+
+1. **Renderer: canvas-2D + SVG oblique projection.** No Three.js / R3F / Cesium without
+   explicit approval. Keep it behind a renderer interface for a future WebGL path.
+2. **Reconciliation:** `ocean-field.js` wins data structures, field math, platforms,
+   profiles, statistics, timeline. `.dc.html` wins layout, hierarchy, palette, copy, design.
+   One canonical vocabulary — never ship two.
+3. **Vocabulary:**
+   ```ts
+   type OceanVariable = "temperature" | "salinity" | "currentSpeed" | "chlorophyll";
+   type QualityFlag  = "GOOD" | "PROBABLY_GOOD" | "SUSPECT" | "BAD";
+   ```
+4. **Layout:** left rail 300px, right panel 360px at 1440x900; full composition at 1920x1080;
+   flexible centre stage; no horizontal scroll.
+5. **Stack:** Vite + React 18 + TypeScript strict + Zustand + CSS custom properties/Modules
+   + hand-rolled SVG charts. Smallest dependency set possible. No Tailwind, no chart library.
+
+## Data integrity rules (non-negotiable)
+
+Real data preferred, in this order: INCOIS → public Argo → ERDDAP → NetCDF/OPeNDAP →
+other public model data → deterministic synthetic *only* where real is unobtainable.
+
+Never display synthetic data as `verified`, `official`, or `live`. Use:
+- `Processing status: locally validated`
+- `Source status: real source, locally cached`
+- `Source status: synthetic test fixture`
+- `Source status: precomputed derived layer`
+
+Demo identifiers must be obviously demo: `DEMO-OCN-2026-001`, `DEMO-RUN-…`, `DEMO-PROVENANCE`.
+
+Do not fabricate: live INCOIS feeds, official Argo results, DOIs, institutional identifiers,
+real-time alerts, ML anomaly layers, auth/roles, or unmeasured accuracy claims. Unavailable
+capability is shown as `Future adapter` / `Planned extension` / `Not available in MVP`.
+
+## Verified real data sources (probed 10 Sep 2026)
+
+### Argo GDAC — observations. CONFIRMED WORKING.
+- Host `https://data-argo.ifremer.fr/` — public, no auth.
+- **INCOIS is itself an Argo DAC**: `/dac/incois/` → **625 real floats**.
+- Daily Indian Ocean aggregate: `/geo/indian_ocean/YYYY/MM/YYYYMMDD_prof.nc` (~4.2 MB/day,
+  ~83 profiles, ~3 in the Bay of Bengal box 5–23°N 78–95°E).
+- Per-float full history: `/dac/incois/<wmo>/<wmo>_prof.nc` (~147 KB, many cycles) —
+  **preferred harvest route**: few files, many timesteps.
+- Global index `ar_index_global_prof.txt.gz` = 58 MB, updated daily.
+- **Format is NetCDF-3 classic (`CDF\x01`)** → the pure-JS `netcdfjs` npm package parses it.
+  No Python, no HDF5, no binary dependency. *Verified by parsing a real file.*
+- Real values pulled: WMO 1902594 @ 9.11°N 86.80°E, 2026-09-03, 242 good levels to 1974 dbar,
+  29.38 °C surface → 24.26 @100 m → 14.45 @200 m → 10.20 @500 m; S 33.92 surface / 34.91 @50 m.
+- Provenance fields available: `PLATFORM_NUMBER`, `DATA_CENTRE`, `CYCLE_NUMBER`, `DATA_MODE`
+  (R/A/D), `PI_NAME`, `PROJECT_NAME`, `POSITIONING_SYSTEM`, `WMO_INST_TYPE`, `POSITION_QC`,
+  `PROFILE_<VAR>_QC`, per-level `<VAR>_QC`, plus `_ADJUSTED` and `_ADJUSTED_ERROR`.
+- **Argo QC flags map exactly onto our enum**: `1`→GOOD, `2`→PROBABLY_GOOD, `3`→SUSPECT,
+  `4`→BAD. No invention required.
+
+### HYCOM GOFS 3.1 — model field. AVAILABLE, WITH A DATE CONSTRAINT.
+- NCSS: `https://ncss.hycom.org/thredds/ncss/grid/GLBy0.08/expt_93.0/ts3z` (HTTP 200).
+- `water_temp`, `salinity`; 1/12°; 40 z-levels (0,2,…,100,125,150,200,250,…).
+- **Time coverage 2018-12-04 → 2024-09-05.** Does *not* reach Sep 2026. See open question Q2.
+
+### Not usable / not yet resolved
+- Argovis `/profiles` → `not found` (API path changed; not needed given GDAC works).
+- NOAA NCEI WOA23 THREDDS → timed out on probe. Fallback only; recheck if HYCOM is dropped.
+- No public INCOIS ERDDAP confirmed yet. INCOIS data reaches us *through* the Argo GDAC.
+
+## Gotchas discovered
+
+- **`netcdfjs` returns 2-D char variables flattened one char per element.** Slice by the
+  trailing string-dimension width; do not index `[i]`. Numeric 2-D vars are flat row-major
+  `[i * N_LEVELS + k]`. `variable.dimensions` holds dimension **ids**, resolve via
+  `nc.dimensions[id]`. Cost me three probe iterations — don't repeat it.
+- `JULD` is days since 1950-01-01 UTC. Fill value 99999.
+- Real INCOIS floats sometimes have `PROFILE_TEMP_QC = E/F` (near-zero good levels) in
+  real-time mode. This is genuine and *useful* — the QC badge and good-only filter have real
+  work to do. Do not filter it away silently.
+- `ocean-scene.jsx` fetches world-atlas TopoJSON from jsDelivr at runtime and waits on
+  `window.d3` / `window.topojson`. **Must be vendored** — the demo has to run offline.
+- The artboard is fixed 1600x1000; `full.png` shows the provenance strip visibly overlapping
+  when narrower. Rails must become responsive.
+- The artboard currently asserts `Processing status: verified`, `✓ Verified source`, a DOI
+  and `INCOIS-OPS-2026-114` over non-real data. All must change.
+
+## Local tooling
+
+Node v26.5.0 · npm 11.17.0 · Python 3.12.13 (**no** numpy/xarray/netCDF4) · no ncdump/gdal.
+→ All NetCDF handling must be JS-side. This is fine; the data is NetCDF-3.
+
+## Scratch
+
+Probe scripts and decoded screenshots:
+`/private/tmp/claude-501/-Users-kshaunish/a3e34b40-8851-40eb-af8a-6372886a30d8/scratchpad/`
+(`probe/probe3.mjs` is the working Argo reader — start from it in Phase 2.)
