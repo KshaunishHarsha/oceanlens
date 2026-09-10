@@ -15,11 +15,11 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 2 — real-data layer built, awaiting approval.** |
-| Phase order | 0 → 1 → 2 → 3 → **5** → **4** → 6 → 7 (5 before 4, deliberate) |
-| Repo state | Real Argo + HYCOM cache in `public/data/real/`. 74 tests green, tsc clean, build OK. |
+| Current phase | **Phase 2 complete — approved for Phase 2.5 Python/FastAPI backend refactor.** |
+| Phase order | 0 → 1 → 2 → **2.5** → 3 → **5** → **4** → 6 → 7 (backend first; evidence before advanced scene) |
+| Repo state | Real Argo + HYCOM cache in `public/data/real/`. 74 tests green, tsc clean, build OK. Backend refactor not yet started. |
 
-## Phase 2 result (2026-09-10) — AWAITING APPROVAL
+## Phase 2 result (2026-09-10) — APPROVED; BACKEND REFACTOR NEXT
 
 **Demo window: 2023-09-25 → 2023-10-05, 11 daily steps.** Labelled "Historical
 demonstration window". Chosen for densest INCOIS Bay of Bengal Argo coverage inside HYCOM
@@ -44,9 +44,9 @@ real model data).
   columns at each float position (what the stats use).
 - Code: `src/domain/stats.ts` (RMSE, meanBias, interpolateProfile, collocate*, haversine,
   timeOffset, bandAgreement, buildScientificInterpretation) — 21 tests.
-  `src/data/CachedRealDataAdapter.ts` (the MVP adapter — **not yet wired to a screen**,
-  that's Phase 3; unit-tested directly). `src/data/FixtureDataAdapter.ts` (synthetic, tests
-  only, never in the app; `src/data/index.ts` only exports the real adapter).
+  `src/data/CachedRealDataAdapter.ts` is the Phase 2 transition adapter. It remains useful
+  for compatibility tests, but the approved target is a Python/FastAPI service boundary.
+  `src/data/FixtureDataAdapter.ts` is synthetic, tests only, never in the app.
 - Scripts: `scripts/prepare-real-data.mjs` (`--argo`/`--hycom`/`--normalise`),
   `scripts/validate-real-data.mjs` (the gate), `scripts/config.mjs`, `scripts/lib/netcdf.mjs`.
   npm: `data:prepare`, `data:normalise`, `data:validate`.
@@ -57,6 +57,37 @@ real model data).
 - Layers NOT available (honestly, in the registry): BGC, glider, CTD, satellite SST,
   satellite chlorophyll, advisories, ML anomaly — all `PLANNED_EXTENSION` /
   `NOT_AVAILABLE_MVP`, none faked.
+
+## Phase 2.5 — approved Python/FastAPI backend refactor
+
+Before the React UI is wired to scientific data, move scientific processing into a Python
+backend. The frontend remains React + TypeScript, but it must consume data through an
+`ApiOceanDataAdapter` and FastAPI services.
+
+Python owns:
+
+- NetCDF reading and normalization
+- QC mapping and depth conversion
+- Interpolation and spatial subsetting
+- Model–observation collocation
+- RMSE, mean bias and agreement statistics
+- Provenance-aware responses
+
+The browser must not parse NetCDF or read scientific arrays directly. The approved flow is:
+
+```text
+Argo / HYCOM NetCDF → Python normalization → validated cache → FastAPI → TypeScript adapter → React UI
+```
+
+Planned backend stack: Python 3.11+, FastAPI, Uvicorn, Pydantic, NumPy, xarray,
+netCDF4 or h5netcdf, pytest and httpx. The backend is local/offline-capable for the
+hackathon and does not download data at startup.
+
+Backend documentation:
+
+- `docs/backend.md`
+- `docs/api.md`
+- `docs/data-contract.md`
 
 ## Phase 1 result (2026-09-10) — APPROVED
 
@@ -114,8 +145,9 @@ They port to TS with little friction.
    ```
 4. **Layout:** left rail 300px, right panel 360px at 1440x900; full composition at 1920x1080;
    flexible centre stage; no horizontal scroll.
-5. **Stack:** Vite + React 18 + TypeScript strict + Zustand + CSS custom properties/Modules
-   + hand-rolled SVG charts. Smallest dependency set possible. No Tailwind, no chart library.
+5. **Stack:** React 19 + TypeScript strict + Vite + Zustand for the browser; Python + FastAPI
+   for scientific data services; CSS custom properties/Modules; hand-rolled SVG charts.
+   Smallest dependency set possible. No Tailwind, no chart library.
 
 ## Data integrity rules (non-negotiable)
 
@@ -144,8 +176,9 @@ capability is shown as `Future adapter` / `Planned extension` / `Not available i
 - Per-float full history: `/dac/incois/<wmo>/<wmo>_prof.nc` (~147 KB, many cycles) —
   **preferred harvest route**: few files, many timesteps.
 - Global index `ar_index_global_prof.txt.gz` = 58 MB, updated daily.
-- **Format is NetCDF-3 classic (`CDF\x01`)** → the pure-JS `netcdfjs` npm package parses it.
-  No Python, no HDF5, no binary dependency. *Verified by parsing a real file.*
+- **Format is NetCDF-3 classic (`CDF\x01`)**. Phase 2 verified the source by parsing it with
+  the pure-JS `netcdfjs` npm package. That parser is now a transition-era feasibility tool;
+  the approved backend refactor will use Python NetCDF tooling for application services.
 - Real values pulled: WMO 1902594 @ 9.11°N 86.80°E, 2026-09-03, 242 good levels to 1974 dbar,
   29.38 °C surface → 24.26 @100 m → 14.45 @200 m → 10.20 @500 m; S 33.92 surface / 34.91 @50 m.
 - Provenance fields available: `PLATFORM_NUMBER`, `DATA_CENTRE`, `CYCLE_NUMBER`, `DATA_MODE`
@@ -166,7 +199,8 @@ capability is shown as `Future adapter` / `Planned extension` / `Not available i
 
 ## Gotchas discovered
 
-- **`netcdfjs` returns 2-D char variables flattened one char per element.** Slice by the
+- **Phase 2 `netcdfjs` reader returns 2-D char variables flattened one char per element.**
+  If the transition script is used, slice by the
   trailing string-dimension width; do not index `[i]`. Numeric 2-D vars are flat row-major
   `[i * N_LEVELS + k]`. `variable.dimensions` holds dimension **ids**, resolve via
   `nc.dimensions[id]`. Cost me three probe iterations — don't repeat it.
@@ -183,8 +217,10 @@ capability is shown as `Future adapter` / `Planned extension` / `Not available i
 
 ## Local tooling
 
-Node v26.5.0 · npm 11.17.0 · Python 3.12.13 (**no** numpy/xarray/netCDF4) · no ncdump/gdal.
-→ All NetCDF handling must be JS-side. This is fine; the data is NetCDF-3.
+Node v26.5.0 · npm 11.17.0 · Python 3.12.13. The approved backend refactor will add a
+Python virtual environment with NumPy, xarray and a NetCDF reader. Until that refactor is
+complete, the Phase 2 transition scripts remain JavaScript-based. Afterward, Python owns
+scientific ingestion and service delivery; the browser does not parse NetCDF.
 
 ## Scratch
 

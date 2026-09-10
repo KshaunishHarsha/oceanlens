@@ -80,9 +80,23 @@ node scripts/prepare-real-data.mjs            # download + normalise
 node scripts/validate-real-data.mjs           # gate
 ```
 
-Raw downloads land in `.cache/raw/` (git-ignored). The normalised cache in
-`public/data/real/` is committed and is the only thing the browser reads. No
-network access is required to run the application after preparation.
+Raw downloads land in `.cache/raw/` (git-ignored). The normalized cache in
+`public/data/real/` is committed and will be read by the FastAPI backend. After
+the Python refactor, the browser will not parse NetCDF or read scientific
+arrays directly. It will receive normalized, provenance-aware responses
+through the API. No network access is required to run the application after
+the cache and backend environment have been prepared.
+
+## Backend provenance contract
+
+The FastAPI service must preserve the provenance classification in every data
+response. At minimum, responses should include the dataset name, source status,
+source URL, retrieval timestamp, variable, unit, transformation summary and a
+cache identifier or checksum where applicable.
+
+The backend owns NetCDF parsing, QC mapping, depth conversion, interpolation,
+collocation and numerical statistics. The frontend displays those results and
+must not silently recalculate them from raw files or substitute synthetic data.
 
 ## Attribution
 

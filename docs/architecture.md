@@ -1,6 +1,8 @@
 # OceanLens India — architecture
 
-Living document. Phase 1 establishes the skeleton; later phases fill it in.
+Living document. Phases 0–2 establish the typed foundation and real-data cache.
+The next approved phase is the Python/FastAPI backend refactor, followed by the
+React UI port.
 
 ## Stack
 
@@ -15,6 +17,9 @@ Living document. Phase 1 establishes the skeleton; later phases fill it in.
 | Charts | hand-rolled SVG (Phase 5) | — |
 | Scene | canvas-2D + SVG oblique projection, behind a renderer interface (Phase 4) | — |
 | Geo | `d3-geo`, `d3-contour`, `topojson-client`, TopoJSON vendored (Phase 4) | — |
+| Backend | Python + FastAPI + Uvicorn (approved Phase 2.5 refactor) | planned |
+| Scientific processing | NumPy + xarray + netCDF4/h5netcdf (backend refactor) | planned |
+| Backend validation | pytest + httpx (backend refactor) | planned |
 
 **Deviation from the Phase 0 proposal:** npm resolved React 19 / TS 7 / Vite 8 / Vitest 5
 rather than React 18. These are current stable releases; nothing in the plan depends on
@@ -48,7 +53,8 @@ src/
       erddap.ts
       opendap.ts
       ogcwms.ts
-    DemoOceanDataAdapter    (Phase 2) reads the locally cached real-data extract
+    CachedRealDataAdapter   (Phase 2 transition adapter; retained for tests/comparison)
+    ApiOceanDataAdapter     (approved Phase 2.5 target; default after refactor)
 
   state/
     analysisStore.ts       the single linked analysis store (Zustand)
@@ -59,17 +65,47 @@ src/
     global.css             reset + body + scrollbars + focus ring
 
 scripts/                   (Phase 2) prepare-real-data.mjs, validate-real-data.mjs
-public/data/               (Phase 2) real/, manifests/
-docs/                      audit, architecture, (Phase 2) data-provenance.md
+public/data/               (Phase 2) real/, manifests/; backend reads this cache
+backend/                   (approved Phase 2.5) FastAPI app, science services, tests
+docs/                      audit, architecture, data provenance, backend/API contracts
 ```
 
 ## The data boundary
 
-Everything the UI knows about ocean data comes through `OceanDataAdapter` (`data/adapter.ts`).
-All methods are async even where the MVP answers synchronously, so a networked adapter is a
-drop-in. Four placeholder adapters (`NetCDFAdapter`, `ERDDAPAdapter`, `OPeNDAPAdapter`,
-`OGCWMSAdapter`) compile and throw `NotImplementedError` with a message that explains they
-are architectural, not broken.
+Everything the UI knows about ocean data continues to come through
+`OceanDataAdapter` (`src/data/adapter.ts`). The approved target implementation
+is `ApiOceanDataAdapter`, which calls FastAPI. The browser will not parse NetCDF,
+perform collocation, or read scientific arrays directly.
+
+The backend will own:
+
+- NetCDF reading and normalization
+- QC mapping and depth conversion
+- Interpolation and spatial subsetting
+- Model–observation collocation
+- RMSE, mean bias and agreement statistics
+- Provenance-aware API responses
+
+The Phase 2 `CachedRealDataAdapter` remains a transition adapter for tests and
+comparison while the backend is built. Four future-source placeholders
+(`NetCDFAdapter`, `ERDDAPAdapter`, `OPeNDAPAdapter`, `OGCWMSAdapter`) remain
+architectural adapters and are not active network services.
+
+The approved data flow is:
+
+```text
+Argo / HYCOM NetCDF
+        ↓
+Python ingestion and normalization
+        ↓
+Validated local cache
+        ↓
+FastAPI services
+        ↓
+TypeScript API adapter
+        ↓
+React / Zustand workspace
+```
 
 ## Availability is data, not code
 
@@ -82,7 +118,10 @@ REAL_CACHED  PRECOMPUTED_FROM_REAL  DERIVED_FROM_REAL
 SYNTHETIC_FIXTURE  NOT_AVAILABLE_MVP  PLANNED_EXTENSION
 ```
 
-Phase 2's per-layer investigation writes the registry; the UI renders availability from it.
+Phase 2's per-layer investigation writes the registry; the backend will expose
+availability and provenance through the API, and the UI will render those
+responses. Unsupported layers must remain unavailable rather than being filled
+with synthetic values.
 Adding a real source later is a data change.
 
 Heterogeneous evidence layers (`domain/layers.ts`) let surface rasters (satellite SST),
@@ -132,15 +171,19 @@ Design notes:
     <TimelineRail/>                  106px; transport, anomaly sparkline, event register, scrubber
 ```
 
-Nothing above `domain/` and `state/` exists yet. Phase 3 builds it against the four reviewed
-screenshots plus the five deferred state screenshots.
+Phase 3 builds the shell against the four reviewed screenshots plus the five
+deferred state screenshots. The shell should use the API adapter after the
+Phase 2.5 backend refactor; it must not bypass the service boundary.
 
 ## Testing strategy
 
-- **Numerics** (`domain/`, and Phase 2 stats): unit tested against hand-computed fixtures and
-  real Phase 0 values. RMSE, mean bias, collocation distance must be provably correct and
-  computed from the same arrays the chart plots — never hard-coded.
+- **Numerics**: Phase 2 TypeScript results are the compatibility reference. The
+  Phase 2.5 Python science services must reproduce them within documented
+  tolerances using the same real cached arrays. RMSE, mean bias and collocation
+  distance must never be hard-coded.
 - **Store**: transition tests (done, 15 cases).
 - **Honesty**: `honesty.test.ts` fails the build if a forbidden claim string reappears.
+- **Backend**: pytest and httpx will validate cache loading, API responses,
+  provenance, unsupported layers and numerical compatibility.
 - UI rendering is validated visually against the reference, not with snapshot tests, at
   hackathon scope.
