@@ -15,11 +15,50 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 1 — foundation built, awaiting approval** |
+| Current phase | **Phase 2 — real-data layer built, awaiting approval.** |
 | Phase order | 0 → 1 → 2 → 3 → **5** → **4** → 6 → 7 (5 before 4, deliberate) |
-| Repo state | Vite+React19+TS7+Zustand+Vitest scaffold. 39 tests green, tsc clean, build+dev OK. |
+| Repo state | Real Argo + HYCOM cache in `public/data/real/`. 74 tests green, tsc clean, build OK. |
 
-## Phase 1 result (2026-09-10)
+## Phase 2 result (2026-09-10) — AWAITING APPROVAL
+
+**Demo window: 2023-09-25 → 2023-10-05, 11 daily steps.** Labelled "Historical
+demonstration window". Chosen for densest INCOIS Bay of Bengal Argo coverage inside HYCOM
+expt_93.0's span (which ends 2024-09-05, so the artboard's 2026 date was impossible with
+real model data).
+
+- **Real Argo**: 28 profiles / 27 floats, **19 INCOIS** (`DAC=IN`), 28 delayed-mode (`D`).
+  From `data-argo.ifremer.fr/dac/{incois,csio}`. Includes a real W→E transect line at ~13°N
+  on 28–29 Sep, a near-daily 9-cycle series from float 6990608, and one retained QC-failed
+  shell (INCOIS 4903776 cycle 2, all `PRES_QC=4`) shown with a BAD flag rather than hidden.
+  French real-time float 1902594 was **excluded** (R-mode, no adjusted fields, merged level
+  axis — did not normalise cleanly).
+- **Real HYCOM GOFS 3.1** (GLBy0.08 expt_93.0), NCSS subset, 11 daily 00:00Z snapshots:
+  `water_temp`, `salinity` (`ts3z`) **and `water_u`, `water_v` (`uv3z`)** — currents ARE real.
+- **Real collocation** computed from the cached arrays: e.g. ARGO-5907083-2 vs HYCOM
+  RMSE 0.67 °C, bias **+0.38 °C** (real warm model bias), 0.4 km, ~14 h offset.
+  ARGO-4903775-2 near-perfect (bias −0.02). No hard-coded stats anywhere.
+- Cache in `public/data/real/`: `manifest.json` (full provenance, checksums, transforms),
+  `model/{grid.json, temperature.f32, salinity.f32, currentU.f32, currentV.f32, columns.json}`,
+  `observations/profiles.json`. **13 MB on disk, 5.3 MB gzipped.** Committed.
+  Slice cache = decimated (stride 3) + 14 depths; `columns.json` = native 40-level model
+  columns at each float position (what the stats use).
+- Code: `src/domain/stats.ts` (RMSE, meanBias, interpolateProfile, collocate*, haversine,
+  timeOffset, bandAgreement, buildScientificInterpretation) — 21 tests.
+  `src/data/CachedRealDataAdapter.ts` (the MVP adapter — **not yet wired to a screen**,
+  that's Phase 3; unit-tested directly). `src/data/FixtureDataAdapter.ts` (synthetic, tests
+  only, never in the app; `src/data/index.ts` only exports the real adapter).
+- Scripts: `scripts/prepare-real-data.mjs` (`--argo`/`--hycom`/`--normalise`),
+  `scripts/validate-real-data.mjs` (the gate), `scripts/config.mjs`, `scripts/lib/netcdf.mjs`.
+  npm: `data:prepare`, `data:normalise`, `data:validate`.
+- `docs/data-provenance.md` = layer classification table + regeneration steps + attribution.
+- Raw downloads staged in `.cache/raw/` (git-ignored). Re-harvest via `npm run data:prepare`.
+  **HYCOM NCSS is very flaky** — the harvest needs generous retries; a killed download can
+  leave a valid header + truncated body, so `prepare` now rejects HYCOM files under 5 MB.
+- Layers NOT available (honestly, in the registry): BGC, glider, CTD, satellite SST,
+  satellite chlorophyll, advisories, ML anomaly — all `PLANNED_EXTENSION` /
+  `NOT_AVAILABLE_MVP`, none faked.
+
+## Phase 1 result (2026-09-10) — APPROVED
 
 - Toolchain: **React 19.3 / TS 7.0 / Vite 8.2 / Vitest 5.0** — npm resolved newer than the
   proposed React 18. Current stable; nothing depended on 18. `tsc --noEmit` clean under
