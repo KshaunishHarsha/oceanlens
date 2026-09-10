@@ -15,9 +15,29 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 0 — audit complete, awaiting approval** |
+| Current phase | **Phase 1 — foundation built, awaiting approval** |
 | Phase order | 0 → 1 → 2 → 3 → **5** → **4** → 6 → 7 (5 before 4, deliberate) |
-| Repo state | Empty except docs. No package.json, no git, no source yet. |
+| Repo state | Vite+React19+TS7+Zustand+Vitest scaffold. 39 tests green, tsc clean, build+dev OK. |
+
+## Phase 1 result (2026-09-10)
+
+- Toolchain: **React 19.3 / TS 7.0 / Vite 8.2 / Vitest 5.0** — npm resolved newer than the
+  proposed React 18. Current stable; nothing depended on 18. `tsc --noEmit` clean under
+  strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`.
+- Domain model in `src/domain/`: `variables.ts` (OceanVariable + meta + formatters),
+  `platforms.ts`, `quality.ts` (Argo QC mapping from Phase 0), `provenance.ts`
+  (DataStatus + DataSourceDescriptor + forbidden-claims list + DEMO ids), `layers.ts`
+  (heterogeneous EvidenceLayer registry), `types.ts` (grids/slices/profiles/collocation).
+- `src/data/adapter.ts` = `OceanDataAdapter` interface. `src/data/adapters/{netcdf,erddap,
+  opendap,ogcwms}.ts` = placeholders that throw `NotImplementedError`.
+- `src/state/analysisStore.ts` = the one linked Zustand store. 15 transition tests.
+- `src/honesty.test.ts` scans the tree for forbidden claims ("Processing status: verified"
+  etc.) and fails the build if any reappear. **Keep this passing.**
+- `src/App.tsx` is a labelled scaffold ("PHASE 1 FOUNDATION — NOT THE PRODUCT UI"), replaced
+  wholesale in Phase 3.
+- Architecture + component tree: `docs/architecture.md`.
+- **Availability is data, not code.** Type unions are complete; `DataSourceDescriptor.status`
+  decides what renders. Phase 2 writes the layer registry.
 
 **Working agreement: one phase at a time.** Implement → run → test → visually verify against
 the Claude Design reference → document known issues → report → *wait for explicit approval*.
