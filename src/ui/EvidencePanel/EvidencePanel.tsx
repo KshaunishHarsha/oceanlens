@@ -5,6 +5,7 @@ import { filterObservations } from '@/state/filterObservations';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/states/StatusStates';
 import { CollocationPanel } from './CollocationPanel';
 import { ProfileChart } from './ProfileChart';
+import { ProvenancePanel } from './ProvenancePanel';
 import styles from './EvidencePanel.module.css';
 
 function ObservationPicker() {
@@ -103,37 +104,13 @@ function ObservationHeader({ id }: { id: string }) {
 }
 
 function TabBody({ tab, id }: { tab: string; id: string }) {
-  const observations = useDataStore((s) => s.observations);
-  const obs = observations.find((o) => o.id === id);
-
   if (tab === 'profile') {
     return <ProfileChart observationId={id} />;
   }
   if (tab === 'comparison') {
     return <CollocationPanel observationId={id} />;
   }
-  // provenance — real, simple field list; not the full processing-chain diagram
-  const src = obs?.provenance;
-  if (!src) return <EmptyState label="No provenance available for this observation" />;
-  const rows: [string, string][] = [
-    ['Dataset', src.datasetName],
-    ['Originator', src.originator],
-    ['Status', src.status],
-    ['Source URL', src.sourceUrl ?? '—'],
-    ['Retrieved', src.retrievedAt ?? '—'],
-    ['Coordinate system', src.coordinateSystem],
-    ['QC convention', src.qcConvention ?? '—'],
-  ];
-  return (
-    <div className={styles.provList}>
-      {rows.map(([k, v]) => (
-        <div key={k} className={styles.provRow}>
-          <span className={styles.provKey}>{k}</span>
-          <span className={styles.provValue}>{v}</span>
-        </div>
-      ))}
-    </div>
-  );
+  return <ProvenancePanel observationId={id} />;
 }
 
 export function EvidencePanel() {

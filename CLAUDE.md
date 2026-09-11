@@ -15,9 +15,9 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 4A complete. Phase 5A steps 1–2 (real profile chart; real collocation/comparison tab) complete.** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. 5A step 3 (provenance-tab polish) not started — the source/date/QC caveats it called for are already surfaced on the Profile and Comparison tabs, so step 3 is now narrower than originally scoped. |
+| Current phase | **Phase 4A and Phase 5A (all three steps: profile chart, comparison tab, provenance tab) complete.** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. Internal-round plan (0→1→2→2.5→3→4A→5A→...) has no phase left before 4B/5B, which are explicitly deferred to finalist work — see below for the recommended next task. |
 | Proposed next order | 0 → 1 → 2 → **2.5** → 3 → **4A** → **5A** → 4B → 5B → 6 → 7. The internal round should prioritise a working 3D model/observation loop before advanced rendering or data expansion. |
-| Repo state | Backend (89 pytest, **unchanged across all of 4A, the context-loss fix, and both 5A steps** — no API contract change; 5A step 2 exercises only the existing `/api/v1/collocation/{id}` endpoint through the existing adapter). `SceneStage` renders a real Three.js/WebGL scene with a depth slice AND clickable real Argo markers, recovers correctly from a lost WebGL context. `EvidencePanel`'s Profile tab renders a **real observed-vs-modelled depth chart**; its Comparison tab now renders **real RMSE/bias/distance/time-offset/depth-band collocation evidence** — see the Phase 5A step 2 entry below. 189 frontend tests green (20 skipped without a live backend), tsc clean, build OK (bundle ~832 KB gzip ~224 KB). Only the provenance tab's presentation is unrefined — Phase 5A step 3. |
+| Repo state | Backend (89 pytest, **unchanged across all of 4A, the context-loss fix, and all three 5A steps** — no API contract change; 5A step 3 made zero new adapter/API calls at all, since it reads data `dataStore` already loads at init). `SceneStage` renders a real Three.js/WebGL scene with clickable real Argo markers, recovers correctly from a lost WebGL context. `EvidencePanel`'s three tabs are now all real: Profile (observed-vs-modelled depth chart), Comparison (real RMSE/bias/distance/time-offset/depth-band collocation evidence), Provenance (real dataset/originator/source-URL/retrieval-date/processing-steps/caveats for both the observation and the currently-selected variable's model source) — see the Phase 5A step 3 entry below. 201 frontend tests green (20 skipped without a live backend), tsc clean, build OK (bundle ~837 KB gzip ~225 KB). |
 
 ## Internal-round pivot — authoritative next work
 
@@ -56,6 +56,107 @@ dates and provenance accurately.
   sensor-plugin system.
 - Advanced volume rendering, full colourbar editing/log scaling, production scaling and
   polished outreach mode.
+
+## Phase 5A step 3 result (2026-09-12) — real provenance tab; Phase 5A now fully complete
+
+**`EvidencePanel`'s Provenance tab no longer shows the flat 7-row field list.** It now
+answers "where did this data come from, when, what was done to it, and what should a
+scientist know before trusting it" for two sources at once — the selected float's real Argo
+record, and whichever real HYCOM/satellite layer backs the *currently selected variable* —
+without repeating any statistic (RMSE, bias, profile line, depth-band verdicts) already
+shown on the other two tabs. **No new adapter method and no new fetch at all**: everything
+rendered here was already loaded into `dataStore` at app init (`observations[].provenance`
+from `getObservations()`, `layers` from the existing `getLayerRegistry()` call) — this step
+is presentation-only.
+
+- **New**: `src/ui/EvidencePanel/provenanceView.ts` (pure, unit-testable — same split as
+  `profileComparison.ts`/`collocationView.ts`): `modelLayerIdForVariable()`,
+  `formatSourceVariables()`, `formatTemporalCoverage()`, `formatRetrievedAt()`.
+  `ProvenancePanel.tsx` + `.module.css` — a shared `SourceBlock` renders an
+  `OBSERVATION SOURCE` block (the selected float's Argo provenance, from
+  `observations[].provenance` — unaffected by which variable is selected, since it
+  describes the float's own data origin) and a `MODEL SOURCE` block for the variable
+  currently selected in the control rail, plus a `WINDOW` banner at the top repeating the
+  real historical-demo label/dates/region from `dataStore.metadata` (the one piece of
+  metadata this task explicitly required here too, despite also appearing on the other
+  tabs — a genuine result like RMSE was never duplicated, only this label).
+- **Real finding used, not invented**: `DataSourceDescriptor.transformations` (defined
+  since Phase 1, populated by the backend's `provenance_service.py` from the real
+  `manifest.json`, but never rendered anywhere before this step) turned out to already
+  contain exactly the "Argo quality filtering/depth conversion" and "HYCOM
+  subset/decimation" steps the task asked to expose, verbatim, e.g. Argo's *"Converted
+  PRES (decibar) to depth (m) via UNESCO 1983, latitude-dependent"* / *"Dropped levels with
+  PRES_QC = 4 (bad)"*, and HYCOM's *"NCSS subset: bbox N20.5/S8/W81/E93..."* / *"Slice
+  cache: decimated horizontally by stride 3, kept 14 depth levels"*. Rendering them as a
+  numbered `<ol>` was the entire task for that requirement — no new backend field, no new
+  data.
+- **Honest handling of chlorophyll**: chlorophyll has no HYCOM field at all (HYCOM carries
+  only temperature/salinity/currents) — its only registered layer is
+  `satellite.chlorophyll`, `NOT_AVAILABLE_MVP`/`PLANNED_EXTENSION` in this cache.
+  `modelLayerIdForVariable('chlorophyll')` maps there rather than to nothing, so selecting
+  chlorophyll shows a real, explicitly-unavailable `SourceBlock` (status badge "Not
+  available in MVP"/"Planned extension", the real reason from `caveats[0]`, no fabricated
+  originator/URL/processing steps — the `unavailable()` factory already guarantees this)
+  instead of a silently blank Model Source section.
+- **States**: a `SourceBlock` for an unavailable/planned source renders exactly the same
+  layout as a real one, just with empty optional fields collapsing to nothing (the
+  `Processing steps`/`Caveats`/`Licence` blocks only render when their arrays are
+  non-empty) plus a closing honesty line quoting the real unavailability reason — never a
+  separate "broken" look, and never implying live/forecast/ML data for a source that has
+  none of those. `!obs` (observation dropped out of the loaded list) keeps the pre-existing
+  `EmptyState` fallback.
+- **Tests**: `provenanceView.test.ts` (12) — every variable's model-layer mapping is
+  distinct, source-variable/unit pairing (including "no unit declared, list bare" and
+  "empty, em dash"), temporal/retrieval formatting including the null cases, and an
+  explicit honesty test asserting the `unavailable()` fixture used across the whole app
+  produces no fabricated originator/URL/retrieval-date/transformations while still
+  surfacing its real caveat text. **201 total passing** (up from 189), 20 skipped without a
+  live backend (unchanged — this step added no integration test, since it makes no new
+  adapter call to integration-test).
+- **Verified**: `tsc --noEmit` clean; `vite build` clean, 78 modules (up from 75).
+- **Verified in an actual browser** (headless Chromium via Playwright, screenshots taken):
+  selecting a real observation and opening Provenance shows the real Argo block (dataset
+  name, originator, a live clickable `data-argo.ifremer.fr` link, real retrieval date, all
+  7 real processing steps, real caveats) and, after scrolling, the real HYCOM
+  temperature/salinity block (NCSS URL, 5 real processing steps including the stride-3
+  decimation, real licence text) — confirmed both blocks update independently: switching
+  to Ocean current speed re-renders the Model Source block with HYCOM's real u/v dataset
+  name/URL/variables, while the Observation block (Argo) stays unchanged, exactly as
+  intended (per-variable model source, variable-independent observation source). Also
+  confirmed live that the Chlorophyll-a field button is genuinely `disabled` in the control
+  rail (an honest UI lockout, not a bug) — so the chlorophyll "unavailable model source"
+  branch could only be exercised via the unit test above, not a live click; documented as a
+  gap below rather than worked around. The 3D scene, Profile tab, and Comparison tab all
+  continued working correctly throughout (no regression).
+- **Gaps, stated plainly**:
+  - The chlorophyll "Model Source" unavailable-block rendering was verified only via
+    `provenanceView.test.ts`'s pure logic + `unavailable()`'s existing guarantees, not
+    against a live-rendered `SourceBlock` — the chlorophyll field is correctly disabled in
+    the control rail (Phase 3 behaviour, unrelated to this step), so there's no UI path to
+    select it and see the component itself render that branch. The rendering logic is the
+    same generic `SourceBlock` already visually verified for four other real sources, so
+    the risk is low, but it's an honest, stated gap rather than a claimed full check.
+  - `Source URL` is rendered as a live external `<a target="_blank">` link; not verified
+    that `data-argo.ifremer.fr`/`ncss.hycom.org` are actually reachable from a demo
+    environment at presentation time — acceptable (these are the same real URLs already
+    shown as plain text pre-this-step; making them clickable is a presentation
+    improvement, not a new claim about reachability).
+  - `SourceBlock`'s row layout (a fixed 110px label column) is not pixel-checked at the
+    narrower 300px control-rail breakpoint — same class of open item noted for
+    `ProfileChart`/`CollocationPanel` in steps 1–2.
+
+**Phase 5A is now fully complete: all three steps (profile chart, comparison tab,
+provenance tab) implemented, tested, and browser-verified.** Per the proposed phase order
+(0→1→2→2.5→3→4A→5A→4B→5B→6→7), 4B and 5B are the next items on that list, but both are
+explicitly named under "Defer to finalist work (do not block the internal round)" above
+(near-real-time ingestion, glider/CTD/BGC/satellite/advisory/ML layers, OGC/OPeNDAP,
+advanced volume rendering) — none of that is scoped for the internal round. The
+highest-value next task is therefore not a new phase number but hardening what already
+exists: the two real, documented-but-unfixed backend inconsistencies found along the way
+(the `/model-column` nearest-timestamp fallback bug from step 1, and the
+`compute_collocation()` temperature-fallback-for-non-salinity-variables bug from step 2),
+plus the several noted-but-unverified narrow-viewport layout gaps across all three tabs —
+see "Recommended next task" in the final report for this session.
 
 ## Phase 5A step 2 result (2026-09-12) — real collocation/comparison tab
 
