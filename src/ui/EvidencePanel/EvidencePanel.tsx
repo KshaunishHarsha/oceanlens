@@ -3,6 +3,7 @@ import { useAnalysisStore } from '@/state/analysisStore';
 import { useDataStore } from '@/state/dataStore';
 import { filterObservations } from '@/state/filterObservations';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/states/StatusStates';
+import { CollocationPanel } from './CollocationPanel';
 import { ProfileChart } from './ProfileChart';
 import styles from './EvidencePanel.module.css';
 
@@ -109,12 +110,7 @@ function TabBody({ tab, id }: { tab: string; id: string }) {
     return <ProfileChart observationId={id} />;
   }
   if (tab === 'comparison') {
-    return (
-      <EmptyState
-        label="Model-vs-observation comparison — implemented in a later phase"
-        detail="Depth-band agreement and collocation diagrams render here once the evidence-panel phase begins."
-      />
-    );
+    return <CollocationPanel observationId={id} />;
   }
   // provenance — real, simple field list; not the full processing-chain diagram
   const src = obs?.provenance;

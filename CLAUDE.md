@@ -15,9 +15,9 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 4A complete. Phase 5A step 1 (real observed-vs-modelled profile chart) complete.** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. 5A steps 2–3 (real comparison/RMSE tab, provenance polish) not started. |
+| Current phase | **Phase 4A complete. Phase 5A steps 1–2 (real profile chart; real collocation/comparison tab) complete.** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. 5A step 3 (provenance-tab polish) not started — the source/date/QC caveats it called for are already surfaced on the Profile and Comparison tabs, so step 3 is now narrower than originally scoped. |
 | Proposed next order | 0 → 1 → 2 → **2.5** → 3 → **4A** → **5A** → 4B → 5B → 6 → 7. The internal round should prioritise a working 3D model/observation loop before advanced rendering or data expansion. |
-| Repo state | Backend (89 pytest, **unchanged across both 4A steps, the context-loss fix, and 5A step 1** — no API contract change; 5A step 1 exercises only the existing `/api/v1/observation(s)`, `/profile`, `/model-column` endpoints through the existing adapter). `SceneStage` renders a real Three.js/WebGL scene with a depth slice AND clickable real Argo markers, recovers correctly from a lost WebGL context. `EvidencePanel`'s Profile tab now renders a **real observed-vs-modelled depth chart** (hand-rolled SVG) for the selected Argo observation's temperature or salinity — see the Phase 5A step 1 entry below. 168 frontend tests green (16 skipped without a live backend), tsc clean, build OK (bundle ~824 KB gzip ~223 KB). Comparison tab and detailed provenance visualisations are still shells — Phase 5A steps 2–3. |
+| Repo state | Backend (89 pytest, **unchanged across all of 4A, the context-loss fix, and both 5A steps** — no API contract change; 5A step 2 exercises only the existing `/api/v1/collocation/{id}` endpoint through the existing adapter). `SceneStage` renders a real Three.js/WebGL scene with a depth slice AND clickable real Argo markers, recovers correctly from a lost WebGL context. `EvidencePanel`'s Profile tab renders a **real observed-vs-modelled depth chart**; its Comparison tab now renders **real RMSE/bias/distance/time-offset/depth-band collocation evidence** — see the Phase 5A step 2 entry below. 189 frontend tests green (20 skipped without a live backend), tsc clean, build OK (bundle ~832 KB gzip ~224 KB). Only the provenance tab's presentation is unrefined — Phase 5A step 3. |
 
 ## Internal-round pivot — authoritative next work
 
@@ -56,6 +56,118 @@ dates and provenance accurately.
   sensor-plugin system.
 - Advanced volume rendering, full colourbar editing/log scaling, production scaling and
   polished outreach mode.
+
+## Phase 5A step 2 result (2026-09-12) — real collocation/comparison tab
+
+**`EvidencePanel`'s Comparison tab no longer shows the "implemented in a later phase"
+shell.** It renders the selected Argo observation's real model-vs-observation collocation
+result — RMSE, mean bias, horizontal distance, time offset, and per-depth-band agreement —
+fetched through the existing `getCollocation` adapter method against the existing
+`/api/v1/collocation/{id}` endpoint. No new endpoint, no statistic recomputed in the
+frontend: every number shown is exactly what the backend already computed (`ProfileChart`
+is unchanged; its own separate Phase 5A step 1 behaviour was not touched by this step).
+
+- **Real gap found and fixed, additive only**: `ApiOceanDataAdapter.getCollocation` was
+  silently dropping four fields the backend's `/collocation` response already returns —
+  `unit`, `observation_timestamp`, `observation_source`, and the full provenance `source`
+  descriptor. `CollocationResult` (`src/domain/types.ts`) gained four new **optional**
+  fields (`unit`, `observationTimestamp`, `observationSource`, `source`) to carry them —
+  additive, so `CachedRealDataAdapter`/`FixtureDataAdapter`, which predate this and don't
+  set them, are unaffected. Without this fix, the task's "clearly label units" and "show
+  source, historical-demo date... QC caveats" requirements could not have been met.
+- **Real gap found and fixed, adapter-side only (no backend change)**:
+  `ApiOceanDataAdapter.getCollocation` previously caught *every* error and returned `null`
+  uniformly — meaning a genuine backend-down/500 failure was indistinguishable from "no
+  collocation exists for this id" (both silently became `null`). Now only a `404`
+  (`ObservationNotFoundError`/`NoModelColumnError`, both real, intentional "no collocation"
+  answers per `docs/api.md`) maps to `null`; any other error (network failure, `5xx`,
+  unexpected status) rethrows, so the UI's `error` state is reachable and honest rather than
+  silently reported as "no comparison available." Verified both ways: existing 404 tests
+  still pass, two new tests confirm a `500` and a network failure both reject.
+- **No timestamp snapping workaround needed here** (unlike step 1's `/model-column` fix):
+  read `backend/app/science/collocation.py`'s `compute_collocation()` — when no `timestamp`
+  is passed it already calls its own `_nearest_timestamp()` internally, so the adapter is
+  called with no timestamp and the backend picks the real nearest model snapshot correctly.
+- **New**: `src/ui/EvidencePanel/collocationView.ts` (pure, unit-testable — same split as
+  `profileComparison.ts`): `selectCollocationView()`, `verdictColorVar()`, `formatKm()`,
+  `formatHours()`, `describeBiasDirection()`; re-exports `profileComparison.ts`'s
+  `isProfileChartVariable` as `isCollocationVariable` rather than duplicating the gate.
+  `useCollocation.ts` (race-guarded hook, mirrors `useProfileComparison.ts`).
+  `CollocationPanel.tsx` + `.module.css` (meta rows, three stat tiles, a depth-band table,
+  the backend's own interpretation sentence shown verbatim, and a caveats list).
+- **Real finding, gate applied rather than a backend fix (out of this task's scope)**:
+  reading `backend/app/science/collocation.py`'s `compute_collocation()` shows that for any
+  `variable` other than `"salinity"` it unconditionally uses the profile's **temperature**
+  array as the "observed" series — so a `currentSpeed` (or `chlorophyll`) collocation
+  request would silently compare the model's current speed against the float's temperature,
+  a real backend inconsistency. `isCollocationVariable` (= `isProfileChartVariable`) gates
+  the tab to temperature/salinity only, exactly like the Profile tab, so this is never
+  reached from the UI. Worth a backend fix later; documented here so nobody "discovers" it
+  by accident.
+- **Design**: RMSE and mean bias each render via the existing `formatValue`/`formatDelta`
+  helpers (`src/domain/variables.ts`), which already return "—" for a non-finite value —
+  the unavailable/zero distinction the task required came for free from code that already
+  existed, not a new formatter. Bias also gets a one-line direction phrase from the
+  variable's own `biasWords` (e.g. "model cooler than observed") and the existing
+  `DELTA_CONVENTION` string ("Δ = model − observation") is shown as a caption. Each depth
+  band's `verdict` (`High`/`Fair`/`Moderate`/`Low`) is coloured via `verdictColorVar()` —
+  styling of an already-real categorical value from the API, never an invented confidence
+  score. The "READING" block shows `result.interpretation` verbatim — the backend's own
+  deterministic sentence (ported 1:1 from `src/domain/stats.ts`'s
+  `buildScientificInterpretation` during Phase 2.5) — satisfying "use existing project
+  logic/thresholds" by construction, since nothing new was computed for it. A caveats list
+  states the GOOD/PROBABLY_GOOD-only QC filter (real, from the backend) and shows the real
+  provenance `source.caveats` array; a WINDOW row repeats the real historical-demo label and
+  date range from `dataStore.metadata`, matching the Command Bar's own wording.
+- **States covered** (`selectCollocationView`, verified live in all four below):
+  `unavailable-variable` (current speed/chlorophyll), `loading`, `error` (with retry, now
+  actually reachable per the fix above), `no-collocation` (adapter returned `null` — no
+  model column exists; real, though every profile in this cache has 100% coverage so it
+  wasn't reproducible live this step), `no-valid-levels` (a real zero-sample result — still
+  shows real position/time metadata and the backend's own explanatory sentence, with every
+  stat as "—", never fabricated as 0), `ready`.
+- **Tests**: `collocationView.test.ts` (17) — variable gating, verdict→colour mapping,
+  km/hour formatting incl. non-finite → "—", bias-direction wording incl. the NaN-safe
+  empty-string case, every `selectCollocationView` branch.
+  `collocationView.integration.test.ts` (4, live backend only) — `ARGO-5907083-2`'s real
+  RMSE/bias (cross-checked against the Phase 2.5-documented value, 0.2434 °C / +0.1816 °C,
+  within tolerance in case the cache is regenerated), the real all-BAD-QC profile
+  `ARGO-4903776-2` resolving to `sampleCount: 0` with every statistic `NaN` (never 0) while
+  distance/time-offset stay real and finite, a selection-change producing a genuinely
+  different result, and salinity's collocation being independently computed from
+  temperature's (not a duplicate). `ApiOceanDataAdapter.test.ts` gained 4 more
+  `getCollocation` cases for the new field mapping and the error-vs-null distinction.
+  **189 total passing** (up from 168), 20 skipped without a live backend (up from 16 — the
+  new integration file).
+- **Verified live** (`npm run test:integration`, backend running): 19/19 passing, including
+  all 4 new collocation cases. Backend `pytest`: 89/89, unchanged.
+- **Verified**: `tsc --noEmit` clean; `vite build` clean, 75 modules (up from 71).
+- **Verified in an actual browser** (headless Chromium via Playwright, screenshots taken):
+  selecting a real observation (`ARGO 2902770`) and opening Comparison shows real RMSE 0.70
+  °C / mean bias −0.21 °C ("model cooler than observed") / 102 levels compared, a real
+  5-row depth-band table with genuinely mixed verdicts (HIGH/MODERATE/LOW/FAIR — not all the
+  same, proof the thresholds are doing real work), and the backend's own interpretation
+  sentence; switching to salinity re-renders correctly with real PSU numbers and an
+  independent RMSE; switching to current speed shows the `unavailable-variable` state;
+  selecting the real BAD-QC float (`ARGO 4903776`) shows RMSE/MEAN BIAS as "—", all five
+  bands as "—" with `n=0` and a LOW verdict, real distance (0.36 km) and time offset (−10.2
+  h) still displayed, and the correct "no quality-controlled levels overlap" sentence. The
+  3D scene and the Profile tab both continued working correctly throughout (no regression).
+- **Gaps, stated plainly**:
+  - `no-collocation` (the adapter returning `null` because no model column was ever
+    extracted) was verified only via a fetch-mocked unit test, not live — every real profile
+    in the current cache has a model column (100% coverage, established in Phase 4A step 2),
+    so this state cannot currently be reproduced against the live backend. It will fire
+    honestly if a future, sparser cache introduces a genuine gap.
+  - The backend's `compute_collocation()` temperature-fallback-for-non-salinity-variables
+    inconsistency (above) is avoided by gating, not fixed — a real, separate backend
+    improvement for later.
+  - Depth-band table columns are fixed-width `<td>`s with no responsive collapse; not
+    pixel-checked at the narrower 300px control-rail breakpoint, same open item noted for
+    `ProfileChart` in step 1.
+  - The "distance (model grid cell to float position)" and "time offset (observation −
+    model)" explanatory parentheticals are plain inline text, not a tooltip/help affordance
+    — adequate for this round, would read better with a hover explanation in a later pass.
 
 ## Phase 5A step 1 result (2026-09-11) — real observed-vs-modelled profile chart
 

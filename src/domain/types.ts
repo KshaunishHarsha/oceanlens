@@ -170,6 +170,20 @@ export interface CollocationResult {
   readonly bands: readonly DepthBandAgreement[];
   /** Deterministic plain-language reading of the comparison. */
   readonly interpretation: string;
+  /** Unit for rmse/meanBias/observedValues/modeledValues, e.g. "°C".
+   * Optional: not every adapter populates it — see CachedRealDataAdapter and
+   * FixtureDataAdapter, which predate this field. ApiOceanDataAdapter (the
+   * default) always sets it from the backend's own response. */
+  readonly unit?: string;
+  /** ISO 8601 UTC — the observation's own time. Duplicates
+   * ObservationProfile.observedAt but kept here so a CollocationResult is
+   * self-contained for display without a second lookup. */
+  readonly observationTimestamp?: string;
+  /** Human label for the observation source, e.g. "Argo GDAC". */
+  readonly observationSource?: string;
+  /** Full provenance descriptor for the comparison's source data (real
+   * dataset name, retrieval date, QC convention, caveats). */
+  readonly source?: DataSourceDescriptor;
 }
 
 export interface DepthBandAgreement {

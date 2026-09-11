@@ -25,7 +25,7 @@ import type {
   PlatformIdentity,
   VolumeSlice,
 } from '@/domain/types';
-import { apiGet } from './api/client';
+import { apiGet, ApiResponseError } from './api/client';
 import type {
   ApiCollocationResponse,
   ApiDataStatus,
@@ -369,8 +369,15 @@ export class ApiOceanDataAdapter implements OceanDataAdapter {
         `/api/v1/collocation/${encodeURIComponent(q.observationId)}`,
         { variable: q.variable, timestamp: q.timestamp },
       );
-    } catch {
-      return null;
+    } catch (e) {
+      // A 404 here is a real, honest answer — the backend's
+      // ObservationNotFoundError/NoModelColumnError both surface as 404 —
+      // meaning "no collocation exists for this id", not a failure. Any
+      // other error (backend unreachable, 5xx, an unexpected status) is a
+      // genuine failure and must propagate so the caller can show a real
+      // error state rather than silently rendering "no collocation".
+      if (e instanceof ApiResponseError && e.status === 404) return null;
+      throw e;
     }
 
     return {
@@ -388,6 +395,10 @@ export class ApiOceanDataAdapter implements OceanDataAdapter {
       sampleCount: res.sample_count,
       bands: res.bands.map(toBand),
       interpretation: res.interpretation,
+      unit: res.unit,
+      observationTimestamp: res.observation_timestamp,
+      observationSource: res.observation_source,
+      source: toDescriptor('collocation', res.source),
     };
   }
 }

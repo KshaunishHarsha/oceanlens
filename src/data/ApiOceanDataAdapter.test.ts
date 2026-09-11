@@ -224,7 +224,41 @@ describe('ApiOceanDataAdapter.getCollocation', () => {
     expect(Number.isNaN(result!.bands[0]!.rmse)).toBe(true);
   });
 
-  it('returns null when the observation does not exist (404)', async () => {
+  it('maps unit, observation timestamp/source, and the full provenance descriptor — not dropped', async () => {
+    mockFetchOnce({
+      observation_id: 'ARGO-5907083-2',
+      variable: 'temperature',
+      unit: '°C',
+      model_source: 'HYCOM GOFS 3.1 (GLBy0.08 expt_93.0)',
+      observation_source: 'Argo GDAC',
+      model_timestamp: '2023-09-29T00:00:00Z',
+      observation_timestamp: '2023-09-29T14:05:00Z',
+      horizontal_distance_km: 4.21,
+      time_offset_hours: 14.08,
+      rmse: 0.2434,
+      mean_bias: 0.1816,
+      depths_m: [0, 50],
+      observed_values: [29.1, 24.3],
+      modeled_values: [28.9, 24.0],
+      sample_count: 2,
+      bands: [{ from_m: 0, to_m: 50, mean_delta: -0.2, rmse: 0.24, sample_count: 2, verdict: 'High' }],
+      interpretation: 'Observed and modelled profiles agree through 50 m (overall RMSE 0.24 °C).',
+      source: SOURCE,
+    });
+    const adapter = new ApiOceanDataAdapter();
+    const result = await adapter.getCollocation({
+      observationId: 'ARGO-5907083-2',
+      variable: 'temperature',
+    });
+    expect(result).not.toBeNull();
+    expect(result!.unit).toBe('°C');
+    expect(result!.observationTimestamp).toBe('2023-09-29T14:05:00Z');
+    expect(result!.observationSource).toBe('Argo GDAC');
+    expect(result!.source?.datasetName).toBe(SOURCE.name);
+    expect(result!.source?.caveats).toEqual(SOURCE.caveats);
+  });
+
+  it('returns null when the observation does not exist (404) — an honest "no collocation" answer', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -236,6 +270,43 @@ describe('ApiOceanDataAdapter.getCollocation', () => {
     const adapter = new ApiOceanDataAdapter();
     const result = await adapter.getCollocation({ observationId: 'NOPE', variable: 'temperature' });
     expect(result).toBeNull();
+  });
+
+  it('returns null when no model column was ever extracted (also a 404) — same honest answer', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ detail: "no model column was extracted for observation 'X'" }),
+      } as Response),
+    );
+    const adapter = new ApiOceanDataAdapter();
+    const result = await adapter.getCollocation({ observationId: 'X', variable: 'temperature' });
+    expect(result).toBeNull();
+  });
+
+  it('propagates a genuine backend failure (500) rather than silently reporting "no collocation"', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({ detail: 'internal error' }),
+      } as Response),
+    );
+    const adapter = new ApiOceanDataAdapter();
+    await expect(
+      adapter.getCollocation({ observationId: 'ARGO-5907083-2', variable: 'temperature' }),
+    ).rejects.toThrow();
+  });
+
+  it('propagates a network failure (backend unreachable) rather than silently reporting "no collocation"', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
+    const adapter = new ApiOceanDataAdapter();
+    await expect(
+      adapter.getCollocation({ observationId: 'ARGO-5907083-2', variable: 'temperature' }),
+    ).rejects.toBeInstanceOf(ApiUnavailableError);
   });
 });
 
