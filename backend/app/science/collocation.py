@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from app.science.geometry import GeoPoint, haversine_km
+from app.science.geometry import GeoPoint, haversine_km, nearest_timestamp_index
 from app.science.interpolation import Level, interpolate_profile
 from app.science.statistics import (
     BandAgreement,
@@ -47,13 +47,36 @@ _VARIABLE_META = {
         "bias_words": ("saltier", "fresher"),
         "structure": "halocline",
     },
-    "currentSpeed": {
-        "unit": "m/s",
-        "range": (0.0, 1.6),
-        "bias_words": ("faster", "slower"),
-        "structure": "jet core",
-    },
 }
+
+# Collocation requires a real per-level *observed* value to compare against
+# the model. Argo floats in this cache carry no current or chlorophyll-a
+# sensor, so there is no honest observed side for those two variables —
+# they are deliberately absent from _VARIABLE_META, not just "not yet
+# implemented". Backend hardening fix (see CLAUDE.md): "currentSpeed" used
+# to have a _VARIABLE_META entry (implying it was fully supported) while the
+# observed-value lookup below silently used the profile's TEMPERATURE array
+# for any variable other than "salinity" — comparing HYCOM current speed
+# against Argo temperature with no error at all. Deriving the supported set
+# from _VARIABLE_META's own keys makes "has a meta entry" and "has a real
+# observed-side implementation" the same set by construction, so they can't
+# drift apart silently again.
+_SUPPORTED_VARIABLES = frozenset(_VARIABLE_META)
+
+
+class UnsupportedCollocationVariableError(Exception):
+    """Raised when collocation is requested for a variable with no real
+    per-level Argo observation to compare against — an explicit, honest
+    "not available" rather than a silent wrong-variable comparison or an
+    unhandled KeyError."""
+
+    def __init__(self, variable: str) -> None:
+        self.variable = variable
+        super().__init__(
+            f"Collocation is not available for '{variable}': Argo profiles in this "
+            "cache carry no per-level observation for it, so no honest "
+            "observed-vs-modelled comparison can be computed."
+        )
 
 
 @dataclass(frozen=True)
@@ -77,6 +100,12 @@ def _column_values(slot: dict, variable: str) -> list[float | None]:
         return slot["temperature"]
     if variable == "salinity":
         return slot["salinity"]
+    # currentSpeed's real MODEL-side data (HYCOM u/v) does exist and this
+    # branch reads it correctly — it is unreachable from compute_collocation
+    # today only because there is no real OBSERVED-side current for it to be
+    # paired against (see _SUPPORTED_VARIABLES above). Kept, not deleted, in
+    # case a genuine current-observation source (e.g. an ADCP glider) is
+    # added later — that would only need _VARIABLE_META extended, not this.
     if variable == "currentSpeed":
         u, v = slot["currentU"], slot["currentV"]
         return [
@@ -84,20 +113,6 @@ def _column_values(slot: dict, variable: str) -> list[float | None]:
             for ui, vi in zip(u, v)
         ]
     return [None for _ in slot.get("temperature", [])]
-
-
-def _nearest_timestamp(target_iso: str, timestamps: list[str]) -> str:
-    from datetime import datetime
-
-    t = datetime.fromisoformat(target_iso.replace("Z", "+00:00"))
-    best, best_diff = timestamps[0], None
-    for ts in timestamps:
-        d = abs(
-            (datetime.fromisoformat(ts.replace("Z", "+00:00")) - t).total_seconds()
-        )
-        if best_diff is None or d < best_diff:
-            best, best_diff = ts, d
-    return best
 
 
 def compute_collocation(
@@ -108,24 +123,23 @@ def compute_collocation(
     model_source: str,
     requested_timestamp: str | None = None,
 ) -> CollocationOutcome:
+    if variable not in _SUPPORTED_VARIABLES:
+        raise UnsupportedCollocationVariableError(variable)
     meta = _VARIABLE_META[variable]
     by_ts = {slot["timestamp"]: slot for slot in column["byTimestamp"]}
     all_ts = list(by_ts.keys())
     model_timestamp = (
         requested_timestamp
         if requested_timestamp in by_ts
-        else _nearest_timestamp(profile["observedAt"], all_ts)
+        else all_ts[nearest_timestamp_index(all_ts, profile["observedAt"])]
     )
     slot = by_ts[model_timestamp]
 
-    obs_values = (
-        profile["salinity"] if variable == "salinity" else profile.get("temperature", [])
-    )
-    obs_qc = (
-        profile["salinityQc"]
-        if variable == "salinity"
-        else profile.get("temperatureQc", [])
-    )
+    # variable is "temperature" or "salinity" here — guaranteed by the
+    # _SUPPORTED_VARIABLES check above, so this is no longer a silent
+    # fallback for anything else (see _SUPPORTED_VARIABLES's comment).
+    obs_values = profile["salinity"] if variable == "salinity" else profile["temperature"]
+    obs_qc = profile["salinityQc"] if variable == "salinity" else profile["temperatureQc"]
 
     axis: list[float] = []
     obs_on_axis: list[float] = []

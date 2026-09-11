@@ -74,6 +74,57 @@ def test_model_column_returns_native_depth_count(client, cache):
     assert math.isclose(body["grid_latitude"], 13.2, abs_tol=0.25)
 
 
+def test_model_column_snaps_to_nearest_timestamp_not_first(client, cache):
+    """Backend hardening fix regression test: get_model_column() used to
+    silently fall back to `cache.grid.timestamps[0]` (the FIRST cached
+    timestamp) for any inexact request, no matter how far away the target
+    actually was. This reproduces exactly that scenario — a target far from
+    the first timestamp and close to the LAST one — and proves both the
+    reported label and the actual data now come from the correct nearest
+    snapshot."""
+    first_ts = cache.grid.timestamps[0]
+    last_ts = cache.grid.timestamps[-1]
+    assert first_ts != last_ts  # sanity: this cache really has more than one
+
+    # 23:00 on the day before the last cached timestamp is far closer to the
+    # last timestamp (1h away) than to the first (many days away).
+    from datetime import datetime, timedelta
+
+    near_last = (
+        datetime.fromisoformat(last_ts.replace("Z", "+00:00")) - timedelta(hours=1)
+    ).isoformat().replace("+00:00", "Z")
+
+    r = client.get(
+        f"/api/v1/model-column?variable=temperature&timestamp={near_last}"
+        "&latitude=13.2&longitude=86.7"
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["actual_timestamp"] == last_ts
+    assert body["actual_timestamp"] != first_ts
+
+    # Not just the label — the VALUES themselves must match a direct request
+    # for the exact nearest timestamp, proving the data lookup (not only the
+    # reported string) used the correct snapshot.
+    exact = client.get(
+        f"/api/v1/model-column?variable=temperature&timestamp={last_ts}"
+        "&latitude=13.2&longitude=86.7"
+    ).json()
+    assert body["values"] == exact["values"]
+
+
+def test_model_column_exact_timestamp_still_matches_itself(client, cache):
+    # Regression guard: the exact-match fast path must still work exactly
+    # as before the fix.
+    exact_ts = cache.grid.timestamps[2]
+    r = client.get(
+        f"/api/v1/model-column?variable=temperature&timestamp={exact_ts}"
+        "&latitude=13.2&longitude=86.7"
+    )
+    assert r.status_code == 200
+    assert r.json()["actual_timestamp"] == exact_ts
+
+
 def test_missing_values_are_null_not_fabricated(client):
     # A depth colder/deeper than the cache's land mask at some cells should
     # surface as null, never as a synthesised number.

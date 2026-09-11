@@ -9,6 +9,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ApiOceanDataAdapter } from '@/data/ApiOceanDataAdapter';
+import { ApiResponseError } from '@/data/api/client';
 import { apiBaseUrl } from '@/data/api/client';
 import { selectCollocationView } from './collocationView';
 
@@ -103,6 +104,25 @@ describe.skipIf(!process.env['OCEANLENS_RUN_INTEGRATION'])(
       expect(a!.observationId).not.toBe(b!.observationId);
       // real positions differ (or at minimum the id/timestamp genuinely does)
       expect(a!.observationTimestamp).not.toBe(b!.observationTimestamp);
+    });
+
+    it('backend hardening: currentSpeed collocation now fails honestly (422) through the adapter, instead of returning a fabricated result', async () => {
+      if (!backendReachable) return;
+      const adapter = new ApiOceanDataAdapter();
+      // The app itself never calls this (isCollocationVariable gates it),
+      // but the adapter/backend boundary must still be honest if it ever
+      // is — see the Phase-5A backend hardening pass in CLAUDE.md.
+      let caught: unknown;
+      try {
+        await adapter.getCollocation({
+          observationId: 'ARGO-5907083-2',
+          variable: 'currentSpeed',
+        });
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeInstanceOf(ApiResponseError);
+      expect((caught as ApiResponseError).status).toBe(422);
     });
 
     it('salinity collocation is also real and independently computed from temperature\'s', async () => {

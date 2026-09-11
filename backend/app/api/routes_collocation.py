@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from app.data.cache_reader import get_cache
 from app.models.queries import OceanVariable
 from app.models.responses import CollocationResponse
+from app.science.collocation import UnsupportedCollocationVariableError
 from app.services.collocation_service import (
     NoModelColumnError,
     ObservationNotFoundError,
@@ -31,3 +32,5 @@ def collocation(
             status_code=404,
             detail=f"no model column was extracted for observation '{observation_id}'",
         ) from e
+    except UnsupportedCollocationVariableError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e

@@ -15,9 +15,9 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 4A and Phase 5A (all three steps: profile chart, comparison tab, provenance tab) complete.** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. Internal-round plan (0→1→2→2.5→3→4A→5A→...) has no phase left before 4B/5B, which are explicitly deferred to finalist work — see below for the recommended next task. |
+| Current phase | **Phase 4A and Phase 5A (all three steps) complete, plus a backend correctness hardening pass (2026-09-12).** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. Both real backend bugs found-and-worked-around during 5A (model-column's timestamp fallback; collocation's temperature fallback for unsupported variables) are now genuinely fixed in the backend itself, not just papered over on the frontend. Internal-round plan (0→1→2→2.5→3→4A→5A→...) has no phase left before 4B/5B, which are explicitly deferred to finalist work — see below for the recommended next task. |
 | Proposed next order | 0 → 1 → 2 → **2.5** → 3 → **4A** → **5A** → 4B → 5B → 6 → 7. The internal round should prioritise a working 3D model/observation loop before advanced rendering or data expansion. |
-| Repo state | Backend (89 pytest, **unchanged across all of 4A, the context-loss fix, and all three 5A steps** — no API contract change; 5A step 3 made zero new adapter/API calls at all, since it reads data `dataStore` already loads at init). `SceneStage` renders a real Three.js/WebGL scene with clickable real Argo markers, recovers correctly from a lost WebGL context. `EvidencePanel`'s three tabs are now all real: Profile (observed-vs-modelled depth chart), Comparison (real RMSE/bias/distance/time-offset/depth-band collocation evidence), Provenance (real dataset/originator/source-URL/retrieval-date/processing-steps/caveats for both the observation and the currently-selected variable's model source) — see the Phase 5A step 3 entry below. 201 frontend tests green (20 skipped without a live backend), tsc clean, build OK (bundle ~837 KB gzip ~225 KB). |
+| Repo state | Backend: **101 pytest** (up from 89 — the 5A steps themselves added zero backend tests/changes; this hardening pass is the first backend code change since Phase 2.5). `SceneStage` renders a real Three.js/WebGL scene with clickable real Argo markers, recovers correctly from a lost WebGL context. `EvidencePanel`'s three tabs are all real: Profile, Comparison, Provenance — see the Phase 5A entries below. `/model-column` now genuinely snaps to the nearest real timestamp (never falls back to the first cached one); `/collocation` now returns an honest `422` for `currentSpeed`/`chlorophyll` instead of either a silently-wrong temperature-vs-current comparison or an unhandled `500` — see the backend hardening entry below. 201 frontend tests green (22 skipped without a live backend — two new live-only cases), tsc clean, build OK (bundle ~837 KB gzip ~225 KB, unchanged — no frontend source changed this pass). |
 
 ## Internal-round pivot — authoritative next work
 
@@ -56,6 +56,144 @@ dates and provenance accurately.
   sensor-plugin system.
 - Advanced volume rendering, full colourbar editing/log scaling, production scaling and
   polished outreach mode.
+
+## Backend correctness hardening (2026-09-12) — the two known bugs from 5A steps 1–2 are now genuinely fixed
+
+**Both backend bugs found (and only worked around on the frontend) during Phase 5A are now
+fixed in the backend itself.** No public API shape change — same endpoints, same request/
+response schemas — only correct behaviour, plus one new, necessary HTTP status for a request
+that was previously either silently wrong (`200` with garbage data) or an unhandled crash
+(`500`). Frontend source is **completely untouched** this pass; only two live-integration
+test files gained a case proving the backend fix end-to-end through the existing adapter.
+
+**Diagnosis, confirmed by reading the code before editing:**
+1. `/model-column` (`get_model_column` in `slice_service.py`, backed by
+   `array_loader.bilinear_column`): `ti = grid.timestamps.index(timestamp) if timestamp in
+   grid.timestamps else 0` — any inexact timestamp silently read data from index **0** (the
+   *first* cached snapshot), and `get_model_column` separately, independently recomputed its
+   own `actual_ts` with the exact same bug, so the reported label could never have caught a
+   future divergence between "timestamp used" and "data actually read" even if only one of
+   the two copies had been fixed.
+2. `compute_collocation` (`app/science/collocation.py`): `obs_values = profile["salinity"] if
+   variable == "salinity" else profile.get("temperature", [])` — `currentSpeed` had a full
+   `_VARIABLE_META` entry (unit, tolerance range, bias words, structure name), so it looked
+   fully supported, but this line silently used the profile's **temperature** array as the
+   "observed" current speed. A request for `?variable=currentSpeed` returned `200` with a
+   scientifically meaningless HYCOM-current-vs-Argo-temperature comparison and no error at
+   all. `chlorophyll` has no `_VARIABLE_META` entry at all, so it hit an unhandled `KeyError`
+   — an ugly `500`, not an honest API response either.
+
+**Fix 1 — `/model-column` nearest-timestamp snapping**:
+- New shared `nearest_timestamp_index(timestamps, target_iso)` in `app/science/geometry.py`
+  — a linear scan (not the existing binary-search `nearest_index`, deliberately: this cache
+  has at most a few dozen timestamps, so performance is immaterial, and a linear scan needs
+  no assumption that the input is sorted ascending, removing one way this fix itself could
+  have silently regressed).
+- `array_loader.bilinear_column()` now uses it for the inexact-timestamp case, and — the
+  structural half of the fix — **now returns the actual timestamp it read data from** as a
+  third tuple element, instead of the caller separately/independently recomputing its own
+  (buggy) copy. `slice_service.get_model_column()` was simplified to just use that returned
+  value; the standalone `actual_ts = timestamp if timestamp in cache.grid.timestamps else
+  cache.grid.timestamps[0]` line is gone entirely. There is now exactly one place that
+  decides which timestamp was used, so the reported label cannot drift from the real data
+  again — this is a stronger fix than only correcting the fallback index.
+- `array_loader.horizontal_slice()` (backing `/slice`) already snapped correctly and was
+  **not touched** — no risk taken on already-correct, already-tested code.
+- **`docs/api.md`/CLAUDE.md's Phase 5A step 1 entry can now be corrected**: the frontend's
+  `nearestTimestamp()` workaround in `src/ui/EvidencePanel/profileComparison.ts` is no
+  longer masking a real backend gap for `/model-column` — the backend now does the right
+  thing on its own. The frontend function is harmless to keep (it still produces an exact,
+  known-valid timestamp, which is never wrong to send), so it was left in place rather than
+  removed, but the stale "sidesteps the backend's fallback" test comment referencing the old
+  bug was corrected in `profileComparison.integration.test.ts`.
+
+**Fix 2 — `/collocation` unsupported-variable honesty**:
+- `_VARIABLE_META` in `app/science/collocation.py` now contains only `temperature` and
+  `salinity` — `currentSpeed`'s entry was removed rather than fixed, because there is no
+  real fix: Argo floats in this cache carry no current-speed sensor, so there is no honest
+  *observed* value to pair a current-speed comparison against at all. A new
+  `_SUPPORTED_VARIABLES = frozenset(_VARIABLE_META)` derives the supported set from the
+  dict's own keys, so "has a meta entry" and "has a real observed-side implementation" are
+  the same set by construction — they cannot silently drift apart again the way they did
+  before (a dict entry added without its matching observed-value branch).
+- New `UnsupportedCollocationVariableError`, raised at the top of `compute_collocation()`
+  before any data is touched. `routes_collocation.py` maps it to **`422`** (Unprocessable
+  Entity — same status class already used for `OutOfRegionError` on `/model-column`, for
+  the same "syntactically valid request, semantically unsatisfiable" reason), with a
+  detail message naming the variable and explaining why.
+- `_column_values()`'s `currentSpeed` branch (real HYCOM u/v model data) was **kept, not
+  deleted** — it's correct and currently just unreachable from `compute_collocation`, kept
+  for if a genuine current-observation source is ever added. `collocation_service.py`'s
+  `_UNITS` dict had its now-unreachable `currentSpeed` entry removed for the same reason
+  `_VARIABLE_META`'s was.
+- **Frontend required no change**: `ApiOceanDataAdapter.getCollocation()` already (since
+  Phase 5A step 2's own hardening) rethrows any non-`404` error rather than swallowing it,
+  so a `422` here surfaces exactly as a real fetch error — and the UI never sends this
+  request anyway, since `isCollocationVariable`/`isProfileChartVariable` already gate the
+  Comparison and Profile tabs to temperature/salinity only. A live integration test was
+  added proving the `422` propagates correctly through the real adapter (`ApiResponseError`
+  with `status === 422`), as defence-in-depth verification of a path the app itself never
+  exercises.
+
+**Tests added**: `backend/tests/test_geometry.py` (7) — exact match, snapping far toward the
+*last* timestamp (the exact scenario the old bug got wrong), mid-range snapping, an
+exact-tie rule, empty-list and single-element edge cases. `test_slices.py` gained
+`test_model_column_snaps_to_nearest_timestamp_not_first` (reproduces the bug scenario
+end-to-end through the real route, asserts both the reported label AND the actual returned
+values match a direct request for the true nearest timestamp — not just the label) and
+`test_model_column_exact_timestamp_still_matches_itself` (regression guard for the unchanged
+exact-match fast path). `test_collocation.py` gained three cases:
+`test_collocation_current_speed_is_explicitly_unavailable` (422, honest detail message),
+`test_collocation_chlorophyll_is_explicitly_unavailable_not_a_500` (422, not a crash),
+`test_collocation_temperature_and_salinity_are_unaffected_by_the_fix` (both still return
+real, non-null results — the fix did not narrow what already worked). **Backend: 101/101
+passing** (up from 89, +12 new), all pre-existing tests unchanged and still green.
+Frontend: two new live-only cases (`profileComparison.integration.test.ts`'s
+`/model-column` nearest-snap end-to-end check; `collocationView.integration.test.ts`'s
+`422`-propagates-through-the-adapter check) — **201 unit tests unchanged, 22 skipped
+without a live backend** (up from 20).
+
+**Verified**: Python `py_compile` clean on every edited file (and the whole `app/` tree);
+`pytest` 101/101; `tsc --noEmit` clean; `npx vitest run` 201/201 (22 skipped); `npm run
+build` clean, 78 modules, bundle unchanged (no frontend source touched); `npm run
+test:integration` **21/21** (up from 19) against a live backend — including both new live
+cases; manual `curl` sanity checks of all three changed responses (nearest-snap
+`actual_timestamp`, `currentSpeed` 422, `chlorophyll` 422-not-500) before the automated
+suite, all matching.
+
+**Verified in an actual browser** (headless Chromium via Playwright, screenshot taken): the
+Profile and Comparison tabs for a real observation (`ARGO 2902770`) render **byte-for-byte
+the same real numbers** as before this pass (RMSE 0.70 °C, mean bias −0.21 °C, 102 levels,
+same depth-band verdicts) — direct proof the hardening changed nothing about the supported
+(temperature/salinity) path's behaviour or output. The 3D scene, marker selection, and all
+three EvidencePanel tabs continued working with no regression.
+
+**API-contract impact, stated explicitly**: no request/response schema changed anywhere.
+The only externally-visible behaviour change is that two previously-broken responses are now
+different: `GET /api/v1/model-column` with an inexact `timestamp` now returns *correct* data
+under the same `200`/`ModelColumnResponse` shape (was: `200` with wrong data — a silent
+correctness bug, not a documented contract, so this is a bugfix, not a breaking change); and
+`GET /api/v1/collocation/{id}?variable=currentSpeed` (or `chlorophyll`) now returns `422`
+with a `CollocationResponse`-shaped-error `{"detail": "..."}` (was: `200` with a bogus
+comparison for `currentSpeed`, or an unhandled `500` for `chlorophyll` — neither was a
+usable contract to begin with). No currently-shipped frontend code depended on either old,
+broken behaviour.
+
+**Remaining internal-round risks**:
+- Both fixes are backend-internal; nothing about the frontend's honesty guarantees changed,
+  but this was the last of the two named "worked around, not fixed" items called out across
+  the three Phase 5A step reports — no further known-and-deferred correctness bugs remain
+  documented in CLAUDE.md as of this pass.
+- The `422` contract for `currentSpeed`/`chlorophyll` collocation is now real but still
+  unreachable from the shipped UI (by design — the tabs gate to temperature/salinity). If a
+  future phase ever lifts that gate without checking this backend behaviour first, it would
+  correctly surface an `error` state rather than fabricate a result — worth a note for
+  whoever does that, not an open bug.
+- The still-open, lower-priority gaps from the three 5A step reports (narrow-viewport/300px
+  layout not pixel-checked on Profile/Comparison/Provenance; chlorophyll's "unavailable
+  model source" Provenance-tab branch verified only by unit test, since the UI correctly
+  disables reaching it) are unchanged by this pass — not in scope here, still worth a future
+  pass.
 
 ## Phase 5A step 3 result (2026-09-12) — real provenance tab; Phase 5A now fully complete
 
@@ -204,7 +342,9 @@ is unchanged; its own separate Phase 5A step 1 behaviour was not touched by this
   a real backend inconsistency. `isCollocationVariable` (= `isProfileChartVariable`) gates
   the tab to temperature/salinity only, exactly like the Profile tab, so this is never
   reached from the UI. Worth a backend fix later; documented here so nobody "discovers" it
-  by accident.
+  by accident. **Fixed 2026-09-12 — see "Backend correctness hardening" above**: the
+  frontend gate described here is still in place (defence in depth), but the backend itself
+  now also refuses these variables honestly (`422`) rather than silently mis-comparing them.
 - **Design**: RMSE and mean bias each render via the existing `formatValue`/`formatDelta`
   helpers (`src/domain/variables.ts`), which already return "—" for a non-finite value —
   the unavailable/zero distinction the task required came for free from code that already
@@ -262,7 +402,7 @@ is unchanged; its own separate Phase 5A step 1 behaviour was not touched by this
     honestly if a future, sparser cache introduces a genuine gap.
   - The backend's `compute_collocation()` temperature-fallback-for-non-salinity-variables
     inconsistency (above) is avoided by gating, not fixed — a real, separate backend
-    improvement for later.
+    improvement for later. **Fixed 2026-09-12 — see "Backend correctness hardening" above.**
   - Depth-band table columns are fixed-width `<td>`s with no responsive collapse; not
     pixel-checked at the narrower 300px control-rail breakpoint, same open item noted for
     `ProfileChart` in step 1.
@@ -339,7 +479,9 @@ existing `getObservation`/`getModelColumn` adapter calls, already used elsewhere
 - **Gaps, stated plainly**:
   - The backend's model-column nearest-timestamp fallback bug (above) is worked around, not
     fixed — a future change to `get_model_column` itself would be a real, separate
-    improvement.
+    improvement. **Fixed 2026-09-12 — see "Backend correctness hardening" above**: the
+    frontend's `nearestTimestamp()` workaround described here is still in place and still
+    harmless to keep, but is no longer masking a real backend gap.
   - The modelled line renders only as deep as HYCOM's own z-levels reach at that position;
     this is correct/honest behaviour (real data has a real depth limit), not a bug, but it
     was not obvious from the spec and is worth flagging so nobody "fixes" it into a

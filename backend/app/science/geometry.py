@@ -23,6 +23,41 @@ def haversine_km(a: GeoPoint, b: GeoPoint) -> float:
     return 2 * r * math.asin(min(1.0, math.sqrt(h)))
 
 
+def _iso_to_epoch(iso: str) -> float:
+    from datetime import datetime
+
+    return datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp()
+
+
+def nearest_timestamp_index(timestamps: list[str], target_iso: str) -> int:
+    """Index of the timestamp in `timestamps` closest to `target_iso` by
+    absolute time difference. Returns -1 for an empty list — never a
+    fabricated index.
+
+    Backend hardening fix (see CLAUDE.md): two call sites used to fall back
+    to index 0 (the *first* cached timestamp) whenever the requested
+    timestamp wasn't an exact match, instead of snapping to the nearest one
+    — a real, silent correctness bug for `/model-column`. This is now the
+    one shared implementation both use.
+
+    Deliberately a linear scan, not a binary search over `nearest_index`:
+    this cache has at most a few dozen timestamps, so the performance
+    difference is immaterial, and a linear scan needs no assumption that
+    `timestamps` is sorted ascending (it always is here, but this function
+    has no way to verify that of a caller, and getting it wrong would
+    silently reintroduce a version of the same bug this fixes)."""
+    if not timestamps:
+        return -1
+    target = _iso_to_epoch(target_iso)
+    best_i = 0
+    best_diff = abs(_iso_to_epoch(timestamps[0]) - target)
+    for i in range(1, len(timestamps)):
+        diff = abs(_iso_to_epoch(timestamps[i]) - target)
+        if diff < best_diff:
+            best_i, best_diff = i, diff
+    return best_i
+
+
 def nearest_index(axis: list[float], value: float) -> int:
     """Nearest index on an ascending axis, via binary search."""
     if not axis:

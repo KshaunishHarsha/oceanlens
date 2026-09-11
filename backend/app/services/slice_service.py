@@ -68,10 +68,9 @@ def get_model_column(
     ):
         raise OutOfRegionError(latitude, longitude)
 
-    depths, values = bilinear_column(
+    depths, values, actual_ts = bilinear_column(
         cache, variable=variable, timestamp=timestamp, latitude=latitude, longitude=longitude
     )
-    actual_ts = timestamp if timestamp in cache.grid.timestamps else cache.grid.timestamps[0]
     from app.science.geometry import nearest_index
 
     yi = nearest_index(list(cache.grid.latitudes), latitude)

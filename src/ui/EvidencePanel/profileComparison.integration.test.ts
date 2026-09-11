@@ -45,8 +45,7 @@ describe.skipIf(!process.env['OCEANLENS_RUN_INTEGRATION'])(
       expect(times.length).toBeGreaterThan(0);
       const modelTs = nearestTimestamp(full!.observedAt, times);
       expect(modelTs).not.toBeNull();
-      expect(times).toContain(modelTs); // exact match — sidesteps the backend's
-      // "unrecognised timestamp -> first cached timestamp" fallback
+      expect(times).toContain(modelTs); // exact match, always safe to request
 
       const column = await adapter.getModelColumn({
         variable: 'temperature',
@@ -75,6 +74,39 @@ describe.skipIf(!process.env['OCEANLENS_RUN_INTEGRATION'])(
       const observed = buildObservedSeries(full, 'temperature');
       expect(full.qc).toBe('BAD');
       expect(observed).toEqual([]); // no fabricated levels for an all-QC-failed profile
+    });
+
+    it('backend hardening: /model-column now snaps a genuinely inexact timestamp to the nearest real one, not the first cached one', async () => {
+      if (!backendReachable) return;
+      const adapter = new ApiOceanDataAdapter();
+      const times = await adapter.getAvailableTimes('temperature');
+      expect(times.length).toBeGreaterThan(2);
+      const first = times[0]!;
+      const last = times.at(-1)!;
+      expect(first).not.toBe(last);
+
+      // One hour before the last cached timestamp — far closer to `last`
+      // than to `first`. Before the fix, ANY inexact timestamp silently
+      // fell back to `first` regardless of how close it actually was.
+      const nearLast = new Date(new Date(last).getTime() - 60 * 60 * 1000).toISOString();
+      const column = await adapter.getModelColumn({
+        variable: 'temperature',
+        timestamp: nearLast,
+        latitude: 13.2,
+        longitude: 86.7,
+      });
+      expect(column.timestamp).toBe(last);
+      expect(column.timestamp).not.toBe(first);
+
+      // Not just the label — the actual values must match a direct request
+      // for the exact nearest timestamp.
+      const exact = await adapter.getModelColumn({
+        variable: 'temperature',
+        timestamp: last,
+        latitude: 13.2,
+        longitude: 86.7,
+      });
+      expect(column.values).toEqual(exact.values);
     });
 
     it('never returns a salinity column for a position outside the cached region', async () => {

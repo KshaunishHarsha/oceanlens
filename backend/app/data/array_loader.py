@@ -11,7 +11,7 @@ import math
 import numpy as np
 
 from app.data.cache_reader import RealDataCache
-from app.science.geometry import nearest_index
+from app.science.geometry import nearest_index, nearest_timestamp_index
 
 VARIABLE_TO_SLICE_KEY: dict[str, str | None] = {
     "temperature": "temperature",
@@ -64,12 +64,26 @@ def _iso_to_epoch(iso: str) -> float:
 
 def bilinear_column(
     cache: RealDataCache, *, variable: str, timestamp: str, latitude: float, longitude: float
-) -> tuple[list[float], list[float | None]]:
+) -> tuple[list[float], list[float | None], str]:
     """Nearest-node column (not true bilinear — matches the frontend's
     fallback path, which also snaps to nearest grid cell) at an arbitrary
-    position, sampled at every cached slice depth."""
+    position, sampled at every cached slice depth.
+
+    Returns (depths, values, actual_timestamp_used). The actual timestamp is
+    always the real one the data was read from — previously this function
+    fell back to the *first* cached timestamp (index 0) for any inexact
+    request, and the caller (slice_service.get_model_column) separately and
+    independently recomputed its own "actual timestamp" for the response,
+    which could silently disagree with what was actually read. Returning it
+    from here removes that duplication and the bug in one move: there is now
+    exactly one place that decides which timestamp was used, and the
+    reported value can never drift from the real one."""
     grid = cache.grid
-    ti = grid.timestamps.index(timestamp) if timestamp in grid.timestamps else 0
+    if timestamp in grid.timestamps:
+        ti = grid.timestamps.index(timestamp)
+    else:
+        ti = nearest_timestamp_index(grid.timestamps, timestamp)
+    actual_timestamp = grid.timestamps[ti]
     yi = nearest_index(list(grid.latitudes), latitude)
     xi = nearest_index(list(grid.longitudes), longitude)
 
@@ -91,4 +105,4 @@ def bilinear_column(
             v = float(cache.slices[key][ti, zi, yi, xi])
             val = v if math.isfinite(v) else None
         values.append(val)
-    return depths, values
+    return depths, values, actual_timestamp

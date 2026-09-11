@@ -74,3 +74,37 @@ def test_collocation_bands_cover_the_water_column(client):
     assert len(bands) == 5
     assert bands[0]["from_m"] == 0
     assert bands[-1]["to_m"] == 1000
+
+
+def test_collocation_current_speed_is_explicitly_unavailable(client):
+    """Backend hardening fix regression test: compute_collocation() used to
+    silently use the profile's TEMPERATURE array as the "observed" series
+    for any variable other than "salinity" — so a currentSpeed request
+    returned a 200 with a scientifically meaningless temperature-vs-current
+    comparison, with no error at all. It must now be an explicit, honest
+    validation failure instead."""
+    r = client.get("/api/v1/collocation/ARGO-5907083-2?variable=currentSpeed")
+    assert r.status_code == 422
+    body = r.json()
+    assert "not available" in body["detail"].lower()
+    assert "currentspeed" in body["detail"].lower()
+
+
+def test_collocation_chlorophyll_is_explicitly_unavailable_not_a_500(client):
+    # Before the fix this raised an unhandled KeyError inside
+    # compute_collocation (no _VARIABLE_META entry) — an ugly 500, not an
+    # honest API response. Must now be the same clean 422 as currentSpeed.
+    r = client.get("/api/v1/collocation/ARGO-5907083-2?variable=chlorophyll")
+    assert r.status_code == 422
+    assert "detail" in r.json()
+
+
+def test_collocation_temperature_and_salinity_are_unaffected_by_the_fix(client):
+    # The two genuinely supported variables must still work exactly as
+    # before — this fix must not have narrowed them by accident.
+    for variable in ("temperature", "salinity"):
+        r = client.get(f"/api/v1/collocation/ARGO-5907083-2?variable={variable}")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["sample_count"] > 0
+        assert body["rmse"] is not None

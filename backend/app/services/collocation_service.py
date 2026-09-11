@@ -7,7 +7,12 @@ from app.models.responses import BandAgreementModel, CollocationResponse
 from app.science.collocation import compute_collocation
 from app.services.provenance_service import source_descriptor
 
-_UNITS = {"temperature": "°C", "salinity": "PSU", "currentSpeed": "m/s"}
+# Only variables compute_collocation() actually supports (temperature,
+# salinity) — currentSpeed was removed here to match its removal from
+# app.science.collocation._VARIABLE_META; a request for it now fails
+# through UnsupportedCollocationVariableError before this dict is ever
+# consulted, not through a leftover unit entry implying it works.
+_UNITS = {"temperature": "°C", "salinity": "PSU"}
 
 
 class ObservationNotFoundError(Exception):
