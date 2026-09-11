@@ -1,10 +1,20 @@
 /* A render smoke test — not a full component test suite (out of scope for
  * this phase), just a guard that the App tree constructs and renders to a
- * string without throwing, across every dataStore status the shell must
- * handle (idle/loading, error, ready-with-data, selected observation across
- * all tabs, briefing/outreach modes). No browser automation is available in
- * this environment, so this is the practical alternative to "does it mount
- * without a console error." */
+ * string without throwing.
+ *
+ * CORRECTION (found while building Phase 4A, kept here rather than silently
+ * fixed): Zustand's React binding hard-codes SSR's `getServerSnapshot` to
+ * the store's state at module-creation time
+ * (node_modules/zustand/esm/react.mjs), so every `renderToString` call below
+ * — regardless of the `useDataStore`/`useAnalysisStore` mutations made
+ * immediately before it — actually renders the SAME initial (idle) tree.
+ * These tests still have real value (they prove the whole import graph
+ * mounts without throwing, including Three.js as of Phase 4A), but they do
+ * NOT independently verify per-status content as the original comment here
+ * implied. Genuine per-state branch coverage now lives in
+ * src/ui/scene/sceneStageState.test.ts, written as a pure function
+ * specifically to test around this limitation. See that file and
+ * SceneStage.smoke.test.tsx for the full explanation. */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';

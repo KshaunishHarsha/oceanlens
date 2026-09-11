@@ -15,9 +15,277 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 3 (UI shell) complete — awaiting approval before Phase 5 (evidence panel internals).** |
-| Phase order | 0 → 1 → 2 → **2.5** → 3 → **5** → **4** → 6 → 7 (backend first; evidence before advanced scene) |
-| Repo state | Backend (89 pytest) serves the real cache. Frontend App.tsx now renders the real operational shell (`src/ui/`), wired to `ApiOceanDataAdapter` via `dataStore`/`analysisStore`. 93 frontend tests green (7 skipped without a live backend), tsc clean, build OK. **Scene rendering, profile chart, and detailed comparison/provenance visualisations are still shells — explicitly excluded from Phase 3.** |
+| Current phase | **Phase 4A steps 1–2 (3D depth-slice scene + real Argo markers/selection) complete.** Step 3 (timeline/opacity/exaggeration already wired since step 1 — remaining: nothing explicit left in the 4-item step list except re-confirming it end-to-end) and step 4 wording overlap; treat 4A as functionally done pending your review. Phase 5A not started. |
+| Proposed next order | 0 → 1 → 2 → **2.5** → 3 → **4A** → **5A** → 4B → 5B → 6 → 7. The internal round should prioritise a working 3D model/observation loop before advanced rendering or data expansion. |
+| Repo state | Backend (89 pytest, **unchanged across both 4A steps and the context-loss fix** — no API contract change). `SceneStage` renders a real Three.js/WebGL scene with a depth slice AND clickable real Argo markers wired to `analysisStore.selectObservation`/`hoverObservation`, **and now recovers correctly from a lost WebGL context** (see fix below — this was verified as a genuine browser rendering bug, not a test-only issue, and is now confirmed fixed live). 148 frontend tests green (13 skipped without a live backend), tsc clean, build OK (bundle ~815 KB gzip ~220 KB — `three`, not code-split, noted as a gap). Profile chart and detailed comparison/provenance visualisations are still shells — Phase 5A. |
+
+## Internal-round pivot — authoritative next work
+
+The goal is not a broad data portal. It is a credible, browser-native **3D evidence
+workspace**: select a variable, depth and time; see the model field and real Argo
+observations in one scene; select an observation; inspect its vertical profile and its
+agreement with the model. Use the committed historical cache for this round and label its
+dates and provenance accurately.
+
+### Phase 4A — 3D evidence scene (do now)
+
+1. Replace `SceneStage`'s shell with a WebGL/Three.js scene fed only through the existing
+   `OceanDataAdapter` / backend API boundary.
+2. Render a real model depth slice for temperature, salinity and currents; use a simple,
+   legible slice plane first rather than attempting full volume ray-marching.
+3. Render geospatially correct Argo markers, honour the existing observation filters, and
+   connect marker selection to `analysisStore.selectObservation`.
+4. Connect the existing timeline, variable, depth, opacity and vertical-exaggeration state
+   to the rendered scene. Preserve loading, error and unavailable-data states.
+
+### Phase 5A — evidence panels (do now, after 4A)
+
+1. Replace the profile shell with a depth-vs-variable chart for the selected Argo profile
+   and closest model column.
+2. Replace the comparison shell with the existing API's real collocation output: RMSE,
+   mean bias, distance, time offset and depth-band agreement. Never fabricate a statistic.
+3. Keep the source URL, source time, QC summary and historical-demo label visible beside
+   every result.
+
+### Defer to finalist work (do not block the internal round)
+
+- Near-real-time scheduled ingestion and replacement of historical HYCOM GOFS 3.1 with a
+  current operational model feed.
+- Glider, CTD, BGC-Argo, satellite, advisory and ML-derived layers.
+- ASCII/delimited-text ingestion, OGC WMS/WCS, OPeNDAP source integration and a true
+  sensor-plugin system.
+- Advanced volume rendering, full colourbar editing/log scaling, production scaling and
+  polished outreach mode.
+
+## Rendering regression fix (2026-09-11) — black SceneStage after WebGL context loss
+
+**Real browser visual-QA finding, confirmed and fixed.** The user reported that with a real
+backend running and real data confirmed loaded (2023-09-25, requested 685 m, actual 700 m),
+the entire `SceneStage` rendered as a solid black rectangle — no plane, texture, legend,
+loading, or error state visible. This was diagnosed as a genuine rendering bug, not a
+test-only artefact, using headless Chromium via Playwright (no native browser tool was
+available; `chromium-cli` was not installed, so the `run` skill's documented Playwright
+fallback was used directly).
+
+- **Root cause**: an unhandled **WebGL context loss**. Browser console capture showed
+  `CONTEXT_LOST_WEBGL: loseContext: context lost` followed by Three.js's own internal
+  `Context Lost.` / `Context Restored.` log lines — but `ThreeSceneCanvas.tsx` had no code
+  listening for either event. React 19 `<StrictMode>` (wrapping `<App/>` in `main.tsx`)
+  double-invokes mount effects in dev mode (mount → cleanup → mount); the first
+  `WebGLRenderer` created during that cycle gets disposed, which force-loses the GL context
+  on the shared `<canvas>` element. Three.js's built-in context-loss handling resets its own
+  bookkeeping on restore but does **not** re-upload application-created textures/geometries —
+  so every GPU resource this component had built (the depth-slice texture, the plane
+  geometry, the marker sprite materials) was silently invalid from that point on, and the
+  canvas stayed black forever with no visible error, matching the report exactly.
+  Confirmed by direct inspection of `node_modules/three/build/three.module.js`:
+  `WebGLRenderer.dispose()` removes its own context-loss listeners but does not itself call
+  `forceContextLoss()`, and there is no automatic app-resource re-upload path.
+- **Fix, in `src/ui/scene/ThreeSceneCanvas.tsx`**: added `webglcontextlost` (calling
+  `event.preventDefault()`, required by the WebGL spec for the browser to attempt automatic
+  restoration at all — without it the context is gone for good) and `webglcontextrestored`
+  listeners on the canvas, registered and torn down in the same effect that owns the render
+  loop. Loss stops the RAF loop; restore bumps a new `renderGeneration` state counter and
+  restarts it. `renderGeneration` was added to the dependency arrays of both content-building
+  effects (the plane/texture effect and the marker-sprite effect), so a restore forces a full,
+  fresh rebuild of every GPU resource rather than trying to selectively patch anything.
+- **Verified live, twice, in headless Chromium (Playwright)**: first run caught a real
+  context-loss/restore cycle in the console and the post-fix screenshot showed the scene
+  rendering correctly afterward (colour ramp plane, real Argo markers, full legend, real
+  data) — direct proof the recovery path works, not just that the steady-state case works.
+  A second, independent fresh run had no context loss at all and rendered correctly and
+  consistently — confirms the fix does not regress the normal (no-loss) path.
+- **Click-to-select re-verified in the same pass**: an earlier ad-hoc check using
+  Playwright's single `page.mouse.click()` gave an ambiguous result (a hover ring appeared
+  but the EvidencePanel didn't visibly update). Root-caused as a Playwright harness artefact,
+  not an app bug: the app binds `pointerdown`/`pointerup` + `setPointerCapture`, and a single
+  synthesized `mouse.click()` did not reliably reproduce that sequence. Separate
+  `page.mouse.down()` / `page.mouse.up()` calls at the same coordinates selected two
+  different real observations correctly (`ARGO 2902772`, `ARGO 5907083`, each with distinct
+  real position/QC/timestamp data shown in the panel) — click-to-select is confirmed working.
+- **Regression test added**: `src/ui/scene/ThreeSceneCanvas.contextLoss.test.ts` (4 cases).
+  **Stated honestly**: this project's Vitest config runs in the `node` environment with no
+  jsdom, no WebGL mock, and no `@testing-library/react` (confirmed absent from
+  `package.json`), so a real behavioural mount-and-dispatch-context-loss-event test is not
+  feasible without adding a meaningfully sized new test harness, which was out of scope for
+  this fix. The added test is a source-level guard instead: it asserts the critical wiring
+  (both listeners present, `preventDefault()` called on loss, `setRenderGeneration`/
+  `startLoop()` called on restore, both listeners removed on cleanup, `renderGeneration`
+  present in both content-effect dependency arrays) is actually in the file, so a future
+  edit cannot silently delete the recovery path without a test failing. It cannot catch a
+  logic-only regression that keeps these strings present but breaks their behaviour — only
+  a real browser check (as performed for this fix) can do that. If a future phase adds
+  jsdom + a WebGL context double to the test harness, this test should be upgraded to a real
+  behavioural one.
+- **Verified**: `tsc --noEmit` clean; `npx vitest run` 148/148 passing (up from 144, +4 new
+  regression cases), 13 skipped without a live backend (unchanged); `npm run build` clean,
+  67 modules (unchanged); `git status -- backend/` empty, backend untouched by this fix.
+
+## Phase 4A step 2 result (2026-09-11) — real Argo markers + selection wiring
+
+**The scene now shows real Argo observation markers, clickable, selecting through the
+existing `analysisStore`/`EvidencePanel` path — no new backend endpoint, no synthetic
+position or QC.** Backend confirmed unchanged (`git status -- backend/` empty; 89/89 pytest).
+
+- **New**: `src/state/filterObservations.ts` — the ONE shared filter function (platform
+  type, INCOIS/China Argo DAC, good-QC-only, collocated-only) now used by BOTH
+  `EvidencePanel`'s observation picker and the scene's markers, so they can never disagree
+  about which real observations are shown for a given filter state. This also **fixed a
+  real pre-existing gap**: `EvidencePanel`'s picker never actually applied
+  `collocatedOnly` (the toggle existed in the control rail but silently did nothing to the
+  panel's list) — it does now, for both surfaces.
+  `src/ui/scene/markerAppearance.ts` — pure QC/selection/hover → colour/scale mapping,
+  colours copied verbatim from `tokens.css` (`--good`/`--warn`/`--bad`/`--cyan-bright`),
+  same "no drift" principle as `palettes.ts`. `projectGeoToWorld()` added to
+  `sliceTexture.ts` (not a new file — reuses the exact `WORLD_UNITS_PER_DEGREE` and
+  longitude-correction constants the plane already uses, refactored into a shared private
+  helper, so a marker cannot drift off the plane it's supposed to sit on).
+- **Backend interface extended, not the backend itself**: `ObservationQuery` gained
+  `collocatedOnly?: boolean` (additive). `ApiOceanDataAdapter.getObservations` now passes
+  `collocated_only` to the **already-existing** `/api/v1/observations` query param
+  (`routes_observations.py`, present since Phase 2.5, tested in
+  `backend/tests/test_observations.py::test_collocated_only_matches_column_cache`) — no
+  route added. `CachedRealDataAdapter.getObservations` (the retained, non-default adapter)
+  was also given `dataCentres`/`collocatedOnly` support for interface parity, since it's
+  meant to be a drop-in comparison adapter and silently ignoring a filter there would be
+  its own honesty bug.
+- **`dataStore`** now fetches `collocatedObservationIds` (one extra
+  `getObservations({collocatedOnly:true})` call, parallel with the existing init fetches)
+  and stores it as a `Set<string>` — **verified live: in this cache, all 28 real profiles
+  have an extracted model column, so `collocated_only=true` returns 28/28.** The filter is
+  genuinely wired and genuinely round-trips through the real API (see the live test below);
+  it simply has no visible effect on THIS dataset because collocation coverage happens to
+  be 100% — an honest fact about the data, not a bug being papered over.
+- **Marker rendering** (`ThreeSceneCanvas.tsx`, extended not replaced): each filtered real
+  observation gets a billboard sprite at its real (lat, lon) projected via
+  `projectGeoToWorld(obs.latitude, obs.longitude, slice.bounds)`, positioned at the
+  surface (y=0 — where a profiling float actually transmits from) with a thin vertical
+  stem down to the currently-viewed depth-slice plane. Colour: GOOD/PROBABLY_GOOD = teal
+  (`--good`), SUSPECT = amber (`--warn`), BAD = coral (`--bad`) — **BAD observations are
+  never hidden by marker-drawing logic**, only by the user's own good-quality-only toggle
+  (on by default, matching the pre-existing `INITIAL_STATE.filters.goodQualityOnly = true`).
+  Selected = larger + cyan ring (`--cyan-bright`); hovered (not selected) = larger + white
+  ring. One filled-circle texture and one ring texture are created ONCE and tinted
+  per-marker via `SpriteMaterial.color`, not regenerated per marker/rebuild.
+- **Selection**: `THREE.Raycaster` against marker sprites on `pointerup`, gated by a
+  6px movement threshold so an orbit-drag release never accidentally selects. A hit calls
+  the **existing, untouched** `analysisStore.selectObservation(id)` — the same action
+  `EvidencePanel`'s picker already called — so `EvidencePanel` updates via its existing
+  subscription, no new wiring on that side. Hover (raycast on `pointermove` while not
+  dragging) calls the existing `hoverObservation(id | null)`; cursor switches to `pointer`
+  over a marker. Clicking empty space is a no-op (deselection stays on EvidencePanel's
+  existing "Clear" button) — matches the literal requirement ("clicking a marker must
+  select"), not a broader click-to-deselect behaviour that wasn't asked for.
+- **Accessibility**: WebGL canvas content has no native screen-reader representation, so
+  this does NOT claim the canvas itself is accessible. Two real things instead: (1) a
+  visually-hidden `aria-live="polite"` region in `SceneStage` announces the selected
+  platform name, QC, and position whenever selection changes — from the same store
+  selection, whether triggered by a marker click or the panel; (2) the pre-existing,
+  fully keyboard-operable `EvidencePanel` observation list is the accessible primary
+  selection path and was NOT removed or hidden behind the new markers — the scene's hint
+  text was updated to say both paths select the same record, not that one replaces the
+  other. A visible on-canvas legend (QC dot colours + a cyan ring sample + a real
+  "N of M observations shown" count) was added to the scene's existing legend box.
+- **Tests**: `filterObservations.test.ts` (8) — every filter combination, explicitly
+  including "BAD is shown once good-quality-only is off" and "collocated-only uses the
+  real id set". `markerAppearance.test.ts` (8) — colour-per-QC, selection/hover priority,
+  render-order. `sliceTexture.test.ts` gained 6 `projectGeoToWorld` cases (bounds-centre
+  at world origin, south=+Z/north=-Z, west/east sign, exact span match against
+  `computePlaneWorldSize`, off-grid safety, two real Argo positions never collapsing to
+  the same point). Existing tests untouched and still passing. **144 total passing** (up
+  from 122), 13 skipped without a live backend (up from 11 — two new live checks below).
+- **Verified live** (`npm run test:integration`, backend running): 12/12 integration
+  tests passing, including two new ones added this step —
+  `getObservations({dataCentres:['IN']})` returns exactly 19 (matches the Phase 2 count),
+  `['HZ']` returns exactly 9, and `collocatedOnly:true` genuinely calls through to the
+  real backend filter (asserted `<=` the unfiltered count and a real subset check, not an
+  exact-28 hard-code, since a future cache rebuild could legitimately change that number).
+- **Verified**: `tsc --noEmit` clean; `pytest` 89/89 unchanged; `vite build` clean, 67
+  modules (up from 64); dev server (`vite --port 5173`) curl-probed for every new/changed
+  module (`ThreeSceneCanvas.tsx`, `markerAppearance.ts`, `sliceTexture.ts`,
+  `filterObservations.ts`, `SceneStage.tsx`, `EvidencePanel.tsx`) — all `200`, no
+  transform errors in the Vite log.
+- **Gaps, stated plainly**:
+  - **Still no browser tool — the markers, their colours, their screen positions relative
+    to the plane, and the click/hover interaction have never been seen.** Every claim
+    above is verified by shared-constant code construction and unit/integration tests on
+    real data, not by looking at it. This compounds with step 1's identical caveat; a real
+    visual check is now overdue before any demo.
+  - `collocated_only` has no visible effect on the current cache (100% coverage) — a
+    future, sparser cache is the only way this filter will visibly do anything. Documented
+    above so nobody mistakes a no-op result for a broken filter later.
+  - The 6px click/drag threshold, ring/scale sizes, and stem opacity are reasonable
+    defaults, not tuned against an actual rendered view for legibility at real scene
+    scale — likely to need adjustment once someone can see it.
+  - Markers project via `projectGeoToWorld` without clamping to the plane's own bounds; an
+    observation meaningfully outside the model region (none currently in this cache) would
+    render off the visible plane rather than being clipped or flagged — acceptable for 28
+    known-real, known-nearby floats, worth a bounds check if the observation set grows.
+
+## Phase 4A step 1 result (2026-09-11) — real 3D depth-slice scene
+
+**`SceneStage` no longer shows a placeholder grid box.** It renders a real Three.js/WebGL
+scene: one textured horizontal plane, positioned at the real selected depth, coloured from a
+real model depth slice fetched through the **unchanged** `OceanDataAdapter`/backend boundary
+(no API contract change — `backend/` untouched, 89 pytest still passing). Step 1 only, per
+scope: no Argo markers yet, no volume/isosurface, camera is a simple drag-orbit + wheel-zoom
+(no external controls library).
+
+- **New**: `src/ui/scene/` — `palettes.ts` (ramp stops copied verbatim from `tokens.css`'s
+  `--ramp-*` gradients, so the WebGL texture and the legend swatch can never drift apart),
+  `sliceTexture.ts` (pure: `VolumeSlice` + palette + domain range → RGBA buffer; also plane
+  world-sizing from real `GeoBounds` with a cos-latitude correction, and depth→world-Y),
+  `useVolumeSlice.ts` (hook: fetches via `dataStore.adapter.getVolumeSlice()` on
+  variable/timestamp/depth change, request-id-guarded against race conditions, no synthetic
+  fallback — a failure surfaces as `status:'error'`), `ThreeSceneCanvas.tsx` (mounts
+  renderer/scene/camera in a `useEffect` — never at module scope or during render, so SSR
+  stays safe), `sceneStageState.ts` (see below).
+- **Dependency added**: `three@0.186.0` + `@types/three@0.185.4` (dev). No other new deps.
+- **Real values confirmed live** (`npm run test:integration`, `sceneData.integration.test.ts`,
+  new this step): real temperature/salinity/current-speed slices fetched and textured against
+  a running backend; land cells (`valid[i]===0`) always render alpha 0, never a colour;
+  chlorophyll's `getVolumeSlice` call genuinely rejects (no slice exists), asserted directly.
+- **Corrected a stale doc comment while verifying row order**: `VolumeSlice`'s JSDoc in
+  `src/domain/types.ts` said `values` was "north-to-south by row" — false. Traced the actual
+  pipeline (Node prep script → Python `cache_reader` → `routes_slices` → `ApiOceanDataAdapter`)
+  and confirmed row 0 = `bounds.minLat` (south), ascending north, everywhere. Fixed the
+  comment; `ThreeSceneCanvas.tsx` documents the resulting south=+Z/north=-Z world convention
+  in detail since it could not be checked by eye (see gap below).
+- **Real finding, fixed properly rather than hidden**: while writing "component state" tests
+  for `SceneStage`, discovered that Zustand's React binding
+  (`node_modules/zustand/esm/react.mjs`) hard-codes SSR's `getServerSnapshot` to the store's
+  state **at module creation**, by design — so `renderToString` on a Zustand-backed component
+  always renders the INITIAL store state, regardless of any `setState` called beforehand.
+  This means **Phase 3's `App.smoke.test.tsx` "7 cases across every store state" never
+  actually verified different content** — only that nothing throws (still true and still
+  useful, just narrower than claimed). Fixed by extracting `SceneStage`'s top-level branch
+  choice into a pure function, `sceneStageState.ts` / `selectSceneStageView()`, tested directly
+  (9 cases, no React/Zustand/SSR involved) in `sceneStageState.test.ts`. `App.smoke.test.tsx`
+  and the new `SceneStage.smoke.test.tsx` got header comments explaining this so nobody trusts
+  their content assertions again. **If a future phase needs genuine per-state SSR/DOM
+  assertions, it will need `jsdom` + client-rendering (`createRoot`/Testing Library), not
+  `renderToString`** — not added here, out of this step's scope.
+- **Tests**: `palettes.test.ts` (6), `sliceTexture.test.ts` (12) — pure data-mapping, the core
+  ask; `sceneStageState.test.ts` (9) — pure component-state branching;
+  `SceneStage.smoke.test.tsx` (2, narrowed per the finding above);
+  `sceneData.integration.test.ts` (4, live-backend only) — real slices → real textures for
+  all 3 renderable variables + the chlorophyll-rejects case. 122 total passing (11 skipped
+  without a live backend, up from 7 — the new integration file).
+- **Verified**: `tsc --noEmit` clean; `vite build` clean, 64 modules (up from 57);
+  `pytest` 89/89 unchanged; dev server curl-probed for every new module (200, no Vite
+  transform errors); `npm run test:integration` 10/10 against a live `uvicorn`.
+- **Gaps, stated plainly**:
+  - **No browser tool was available — the scene has never been looked at.** Every geographic
+    orientation, colour, and camera claim above is verified by code construction and unit
+    tests, not by seeing it render. This is the single biggest open risk before demoing.
+  - Bundle grew from ~264 KB to ~800 KB gzipped ~216 KB (three.js is not small). Not
+    code-split; Vite's build warns about it. Acceptable for an internal round, worth a dynamic
+    `import()` later.
+  - `ErrorState`'s retry button inside the slice-loading sub-branch is currently a no-op
+    (the fetch re-runs automatically on any dependency change, but there's no manual nudge for
+    "same params, try again" — noted in the component, not fixed this step).
+  - `@types/three@0.185.4` is one minor version behind the installed `three@0.186.0` package;
+    no type errors resulted, but worth pinning together if bumped later.
 
 ## Phase 3 result (2026-09-11) — UI shell, AWAITING APPROVAL
 

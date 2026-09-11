@@ -15,7 +15,7 @@
     "data:prepare": "node scripts/prepare-real-data.mjs",
     "data:normalise": "node scripts/prepare-real-data.mjs --normalise",
     "data:validate": "node scripts/validate-real-data.mjs",
-    "test:integration": "OCEANLENS_RUN_INTEGRATION=1 vitest run src/data/ApiOceanDataAdapter.integration.test.ts"
+    "test:integration": "OCEANLENS_RUN_INTEGRATION=1 vitest run src/data/ApiOceanDataAdapter.integration.test.ts src/ui/scene/sceneData.integration.test.ts"
   },
   "repository": {
     "type": "git",
@@ -32,12 +32,14 @@
   "dependencies": {
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "three": "^0.186.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@types/node": "^22.20.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.185.4",
     "@vitejs/plugin-react": "^6.1.1",
     "netcdfjs": "^4.0.0",
     "typescript": "^7.0.2",

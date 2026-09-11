@@ -1,22 +1,20 @@
 import { QUALITY } from '@/domain/quality';
 import { useAnalysisStore } from '@/state/analysisStore';
 import { useDataStore } from '@/state/dataStore';
+import { filterObservations } from '@/state/filterObservations';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/states/StatusStates';
 import styles from './EvidencePanel.module.css';
 
 function ObservationPicker() {
   const observations = useDataStore((s) => s.observations);
+  const collocatedIds = useDataStore((s) => s.collocatedObservationIds);
   const filters = useAnalysisStore((s) => s.filters);
   const selectObservation = useAnalysisStore((s) => s.selectObservation);
 
-  const filtered = observations.filter((o) => {
-    if (!filters.platformTypes[o.platformType]) return false;
-    const dac = o.identity?.dataCentre;
-    if (dac === 'IN' && !filters.dataCentres.IN) return false;
-    if (dac === 'HZ' && !filters.dataCentres.HZ) return false;
-    if (filters.goodQualityOnly && o.qc !== 'GOOD' && o.qc !== 'PROBABLY_GOOD') return false;
-    return true;
-  });
+  // Shared with the scene's markers (src/ui/scene/ThreeSceneCanvas.tsx) so
+  // the panel's list and the clickable markers never disagree about which
+  // real observations the current filters allow.
+  const filtered = filterObservations(observations, filters, collocatedIds);
 
   if (filtered.length === 0) {
     return (
@@ -34,8 +32,8 @@ function ObservationPicker() {
         <span className={styles.count}>{filtered.length} shown</span>
       </div>
       <p className={styles.pickerHint}>
-        Scene-click selection arrives with the 3D scene. Until then, pick a real
-        observation directly.
+        Click a marker in the scene, or pick a real observation here — both select the
+        same record.
       </p>
       <ul className={styles.pickerList}>
         {filtered.map((o) => (

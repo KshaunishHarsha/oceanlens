@@ -23,6 +23,12 @@ export interface DataState {
   metadata: DatasetMetadata | null;
   layers: LayerRegistry | null;
   observations: readonly ObservationProfile[];
+  /** Ids of observations that have a real model collocation, per the
+   * backend's existing `?collocated_only=true` filter — used by the
+   * collocated-only observation filter (control rail, scene markers,
+   * evidence panel). Fetched once alongside `observations`, not re-queried
+   * per filter toggle. */
+  collocatedObservationIds: ReadonlySet<string>;
   /** Whether each OceanVariable has a real timestamp axis at all — the
    * cheapest honest signal of "is there real data behind this control". */
   variableAvailability: Partial<Record<OceanVariable, boolean>>;
@@ -42,6 +48,7 @@ const INITIAL: DataState = {
   metadata: null,
   layers: null,
   observations: [],
+  collocatedObservationIds: new Set(),
   variableAvailability: {},
 };
 
@@ -53,15 +60,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
     set({ status: 'loading', error: null });
     try {
       const adapter = await createDataAdapter();
-      const [metadata, layers, observations, variableTimes] = await Promise.all([
+      const [metadata, layers, observations, collocated, variableTimes] = await Promise.all([
         adapter.getMetadata(),
         adapter.getLayerRegistry(),
         adapter.getObservations({}),
+        adapter.getObservations({ collocatedOnly: true }),
         Promise.all(OCEAN_VARIABLES.map((v) => adapter.getAvailableTimes(v))),
       ]);
       const variableAvailability = Object.fromEntries(
         OCEAN_VARIABLES.map((v, i) => [v, (variableTimes[i]?.length ?? 0) > 0]),
       ) as Partial<Record<OceanVariable, boolean>>;
+      const collocatedObservationIds = new Set(collocated.map((o) => o.id));
 
       // temperature's real axis drives the timeline; every variable shares
       // the same model timestamps in this cache, but temperature is
@@ -73,6 +82,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
         metadata,
         layers,
         observations,
+        collocatedObservationIds,
         variableAvailability,
         error: null,
       });

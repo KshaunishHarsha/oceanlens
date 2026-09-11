@@ -46,6 +46,9 @@ export interface ObservationQuery {
   readonly goodQualityOnly?: boolean;
   /** Only profiles with a model collocation within this distance. */
   readonly maxCollocationKm?: number;
+  /** Only profiles that have a model collocation at all (any distance) —
+   * maps onto the backend's existing `?collocated_only=` query param. */
+  readonly collocatedOnly?: boolean;
 }
 
 export interface CollocationQuery {

@@ -295,6 +295,7 @@ export class ApiOceanDataAdapter implements OceanDataAdapter {
       max_lat: q.bounds?.maxLat,
       min_lon: q.bounds?.minLon,
       max_lon: q.bounds?.maxLon,
+      collocated_only: q.collocatedOnly,
     });
     const argoSource = toDescriptor('argo.incois', res.source);
     return res.observations.map((o) => ({

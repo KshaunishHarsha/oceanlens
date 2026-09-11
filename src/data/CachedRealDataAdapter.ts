@@ -401,6 +401,8 @@ export class CachedRealDataAdapter implements OceanDataAdapter {
     return this.cache.profiles
       .filter((p) => {
         if (q.platformTypes && !q.platformTypes.includes(p.platformType)) return false;
+        if (q.dataCentres && !q.dataCentres.includes(p.identity.dataCentre)) return false;
+        if (q.collocatedOnly && !this.cache.columns.has(p.id)) return false;
         if (bounds) {
           if (p.latitude < bounds.minLat || p.latitude > bounds.maxLat) return false;
           if (p.longitude < bounds.minLon || p.longitude > bounds.maxLon) return false;

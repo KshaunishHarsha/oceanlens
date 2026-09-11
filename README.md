@@ -6,10 +6,10 @@ actually observed, and how well they agree.
 
 > Status: under construction, phase by phase. Phases 0–2 (typed foundation,
 > linked analysis state, real-data layer), the Python/FastAPI backend
-> refactor, and the UI shell are complete. `npm run dev` now shows the real
-> operational shell — navigation, controls, filters, timeline — wired to
-> live real data. The 3D scene, profile chart, and detailed comparison views
-> are still shells (each says so on screen) — later phases.
+> refactor, the UI shell, and the interactive 3D depth-slice scene are
+> complete. `npm run dev` shows real model slices and clickable real Argo
+> markers alongside the operational controls. The profile chart and detailed
+> comparison views remain shells for the next phase.
 
 ## Requirements
 

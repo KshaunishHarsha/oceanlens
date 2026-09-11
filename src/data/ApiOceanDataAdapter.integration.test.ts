@@ -127,4 +127,28 @@ describe.skipIf(!process.env['OCEANLENS_RUN_INTEGRATION'])('ApiOceanDataAdapter 
       expect(['NOT_AVAILABLE_MVP', 'PLANNED_EXTENSION']).toContain(layers[id]!.source.status);
     }
   });
+
+  it('passes collocatedOnly through to the backend\'s real ?collocated_only= filter (Phase 4A step 2)', async () => {
+    if (!backendReachable) return;
+    const adapter = new ApiOceanDataAdapter();
+    const all = await adapter.getObservations({});
+    const collocated = await adapter.getObservations({ collocatedOnly: true });
+    // every real profile in this cache has an extracted model column, so the
+    // filter is genuinely applied but happens not to remove anything for
+    // this particular dataset — still real, not a hard-coded pass-through.
+    expect(collocated.length).toBeLessThanOrEqual(all.length);
+    expect(collocated.length).toBeGreaterThan(0);
+    expect(collocated.every((o) => all.some((a) => a.id === o.id))).toBe(true);
+  });
+
+  it('passes dataCentres through to the backend\'s real ?dac= filter', async () => {
+    if (!backendReachable) return;
+    const adapter = new ApiOceanDataAdapter();
+    const incois = await adapter.getObservations({ dataCentres: ['IN'] });
+    const china = await adapter.getObservations({ dataCentres: ['HZ'] });
+    expect(incois.length).toBe(19); // real count, verified in Phase 2
+    expect(china.length).toBe(9);
+    expect(incois.every((o) => o.identity?.dataCentre === 'IN')).toBe(true);
+    expect(china.every((o) => o.identity?.dataCentre === 'HZ')).toBe(true);
+  });
 });

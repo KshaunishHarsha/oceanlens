@@ -62,7 +62,12 @@ export interface OceanModelGrid {
 
 /**
  * A horizontal slice of the model volume at one depth and one time.
- * `values` is row-major `[y * nx + x]`, north-to-south by row.
+ * `values` is row-major `[y * nx + x]`, row 0 = `bounds.minLat` (south),
+ * ascending northward — matching `CachedRealDataAdapter`'s `.f32` layout and
+ * the API's `latitudes` array, both ascending. (Corrected 2026-09-11: an
+ * earlier version of this doc said "north-to-south"; verified against the
+ * actual data pipeline while building the 3D scene — see
+ * `src/ui/scene/sliceTexture.ts`.)
  * `null` entries are land or missing data — never silently zero-filled.
  */
 export interface VolumeSlice {
