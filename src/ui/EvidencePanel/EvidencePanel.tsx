@@ -45,6 +45,7 @@ function ObservationPicker() {
               type="button"
               className={styles.pickerRow}
               onClick={() => selectObservation(o.id)}
+              title={o.platformName}
             >
               <span className={styles.pickerId}>{o.platformName}</span>
               <span className={styles.pickerPos}>

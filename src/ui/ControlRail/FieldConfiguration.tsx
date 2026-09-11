@@ -33,6 +33,7 @@ export function FieldConfiguration() {
               data-active={active}
               disabled={!isAvailable}
               onClick={() => setVariable(v)}
+              title={meta.name}
             >
               <span className={styles.fieldAbbr}>{meta.abbr}</span>
               <span className={styles.fieldName}>{meta.name}</span>

@@ -25,6 +25,15 @@
 }
 .grow {
   flex: 1;
+  /* Without a floor, this spacer can collapse to 0 at narrower widths
+     (the strip's content already fills the row, so flexbox gives the
+     empty spacer nothing to grow into) — the trailing "Bay of Bengal
+     subset · Argo + HYCOM" label then visually runs straight into the
+     view-id text before it with no gap or separator. Matches the same
+     min-width already used for this exact purpose in CommandBar's own
+     .spacer. The strip still scrolls (overflow-x: auto, above) if the
+     full row genuinely doesn't fit. */
+  min-width: 12px;
 }
 .dim {
   color: var(--text-muted);

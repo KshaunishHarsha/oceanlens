@@ -30,6 +30,7 @@ export function LayerToggles() {
               data-on={on && renderable}
               disabled={!renderable}
               onClick={() => toggleLayer(id)}
+              title={layer?.label ?? id}
             >
               <span className={styles.checkbox} data-on={on && renderable} aria-hidden="true" />
               <span className={styles.layerLabel}>{layer?.label ?? id}</span>

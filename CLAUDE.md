@@ -15,9 +15,9 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 4A and Phase 5A (all three steps) complete, plus a backend correctness hardening pass (2026-09-12).** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. Both real backend bugs found-and-worked-around during 5A (model-column's timestamp fallback; collocation's temperature fallback for unsupported variables) are now genuinely fixed in the backend itself, not just papered over on the frontend. Internal-round plan (0→1→2→2.5→3→4A→5A→...) has no phase left before 4B/5B, which are explicitly deferred to finalist work — see below for the recommended next task. |
+| Current phase | **Phase 4A and Phase 5A (all three steps) complete, a backend correctness hardening pass, and a browser-based responsive/accessibility QA pass — all done as of 2026-09-12.** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. Both real backend bugs found-and-worked-around during 5A are now genuinely fixed in the backend. The narrow-viewport (300px control-rail) layout gap noted-but-never-checked across all three 5A step reports has now actually been checked in a real browser and four real defects it found are fixed — see "Responsive/accessibility QA pass" below. Internal-round plan (0→1→2→2.5→3→4A→5A→...) has no phase left before 4B/5B, which are explicitly deferred to finalist work — see below for the recommended next task. |
 | Proposed next order | 0 → 1 → 2 → **2.5** → 3 → **4A** → **5A** → 4B → 5B → 6 → 7. The internal round should prioritise a working 3D model/observation loop before advanced rendering or data expansion. |
-| Repo state | Backend: **101 pytest** (up from 89 — the 5A steps themselves added zero backend tests/changes; this hardening pass is the first backend code change since Phase 2.5). `SceneStage` renders a real Three.js/WebGL scene with clickable real Argo markers, recovers correctly from a lost WebGL context. `EvidencePanel`'s three tabs are all real: Profile, Comparison, Provenance — see the Phase 5A entries below. `/model-column` now genuinely snaps to the nearest real timestamp (never falls back to the first cached one); `/collocation` now returns an honest `422` for `currentSpeed`/`chlorophyll` instead of either a silently-wrong temperature-vs-current comparison or an unhandled `500` — see the backend hardening entry below. 201 frontend tests green (22 skipped without a live backend — two new live-only cases), tsc clean, build OK (bundle ~837 KB gzip ~225 KB, unchanged — no frontend source changed this pass). |
+| Repo state | Backend: **101 pytest**, untouched by this responsive-QA pass (frontend-only: CSS + `title` attributes + tests). `SceneStage` renders a real Three.js/WebGL scene with clickable real Argo markers, recovers correctly from a lost WebGL context, verified working at both the desktop (1600x1000) and 300px-control-rail (1440x900) breakpoints. `EvidencePanel`'s three tabs are all real and now verified legible at both breakpoints: Profile, Comparison, Provenance. `/model-column` genuinely snaps to the nearest real timestamp; `/collocation` returns an honest `422` for `currentSpeed`/`chlorophyll`. **214 frontend tests green** (22 skipped without a live backend), tsc clean, build OK (bundle ~837 KB gzip ~225 KB, module count unchanged — no new imports this pass, only CSS/attribute edits). |
 
 ## Internal-round pivot — authoritative next work
 
@@ -56,6 +56,125 @@ dates and provenance accurately.
   sensor-plugin system.
 - Advanced volume rendering, full colourbar editing/log scaling, production scaling and
   polished outreach mode.
+
+## Responsive/accessibility QA pass (2026-09-12) — the narrow-viewport gap from every 5A step report, actually checked
+
+**A real headless-Chromium check at the 300px control-rail breakpoint (1440x900, the exact
+size named in the Phase 1 locked layout decision) plus the desktop breakpoint (1600x1000,
+the canonical artboard size) — the check every prior 5A step report flagged as "not yet
+pixel-verified" and deferred.** Found four real, reproducible layout defects, all only at
+the narrow breakpoint; fixed all four with CSS-only changes plus three `title` attributes.
+No scientific calculation, backend API, or data source was touched — `git status --
+backend/` is empty for this pass.
+
+**Method**: Playwright screenshots plus `document.documentElement.scrollWidth >
+clientWidth` overflow checks at both viewports, across: the default scene, Profile tab
+(ready + no-valid-levels states), Comparison tab (ready + no-valid-levels +
+unavailable-variable states), Provenance tab (both source blocks, scrolled to see both),
+and a live marker click-to-select check at the narrow width. Every fix was re-verified with
+a fresh screenshot before being considered done, and the *un-narrowed* desktop screenshots
+were re-checked after each fix specifically to catch any unintended regression at the width
+that was already fine — this caught one real regression before it shipped (below).
+
+**Defect 1 — `ProvenanceStrip`'s trailing label visually ran into the text before it**:
+at 1440px, `View ID: DEMO-OCN-2023-0925-BB` and the trailing `Bay of Bengal subset · Argo +
+HYCOM` label rendered with **zero gap between them** — read as one merged, confusing string.
+Root cause: `.grow`'s `flex: 1` spacer had no `min-width`, so once the row's other content
+already filled the available width, the spacer legitimately computed to 0px. Fix: `min-
+width: 12px` on `.grow` — the exact value `CommandBar.module.css`'s own `.spacer` already
+uses for the identical purpose, so this is now consistent across both bars, not a new
+convention.
+- **Defect 2 — CommandBar's "Share view" button was reachable only by scrolling, with no
+  visible affordance that scrolling was possible**: `.bar` already had `overflow-x: auto`
+  (a deliberate, pre-existing pattern also used by `ProvenanceStrip`), so this was not a
+  hard clip — the button was never destroyed, just off-screen by default with nothing
+  indicating more content existed sideways. Confirmed both ways: `bar.scrollWidth (1460) >
+  bar.clientWidth (1380)`, and manually scrolling the bar revealed "Share view" intact.
+  Still counts as a real "inaccessible click target" per the task's own list. Fix: hide the
+  `REAL CACHED DATA` badge (128px, the single widest reclaimable element) at the same
+  `max-width: 1599px` breakpoint the rails already narrow at — chosen because it is fully
+  redundant with `ProvenanceStrip`'s "Processing status: locally validated" line one row
+  below and the per-layer REAL/PRECOMPUTED badges throughout the control rail; the
+  honesty-critical `HISTORICAL DEMONSTRATION` badge was deliberately left untouched. This
+  fully eliminated the bar's overflow (`scrollWidth === clientWidth` after the fix, both
+  widths) rather than just shrinking it.
+- **Defect 3 — the "UNAVAILABLE" badge on a disabled control-rail row (e.g. Chlorophyll-a,
+  Model temperature-when-off-cache) could be silently clipped, not just truncated**: at
+  1440px, `.unavailableWrap`'s row child (`FieldConfiguration`/`LayerToggles`'s shared row
+  button) has its own `width: 100%`, correct when it is the row's only content but wrong
+  once `UnavailableNote` adds a sibling badge — the row's fixed 100% left the badge with
+  nowhere to go, and the control rail's own `overflow-x: hidden` (confirmed in
+  `ControlRail.module.css`) clipped it with **no ellipsis, no scrollbar, no visible
+  indication anything was missing** — read as `UNAVAILABL` with the box border cut off
+  mid-character. **Regression caught mid-fix**: the first attempt (`width:100%;
+  flex-wrap:wrap` on the base `.unavailableWrap`) fixed this but also changed
+  `ProfileChart`'s/`CollocationPanel`'s *already-correct* unavailable-variable layout
+  (EmptyState + badge, previously side-by-side at the top) into a wrapped two-line layout at
+  **both** widths, including the desktop width where nothing was ever broken — caught by
+  re-checking the desktop screenshot, not assumed safe. Fixed by scoping with
+  `.unavailableWrap:has(> button)` so only the control-rail row usage (the one with a real
+  defect) is affected; the EmptyState usage is provably back to its original layout
+  (verified by screenshot, byte-for-byte the same composition as before this pass). The
+  scoped rule adds `width:100%; flex-wrap:wrap` to the wrap, and `.unavailableWrap > button`
+  changes the row's own sizing from a fixed `100%` to `flex:1 1 0%; min-width:0` so it
+  shares the line with the badge — verified at both widths that this keeps everything on
+  ONE line whenever there is room (which there always is once the row can actually share
+  space, at both 300px and full desktop) rather than forcing a wrap unconditionally.
+- **Defect 4 — three truncation points (`.layerLabel`, `.fieldName`, `.pickerId`) had no
+  way to reveal their full text**: CSS `text-overflow: ellipsis` is an intentional,
+  pre-existing pattern in this codebase (label flexes and truncates while an adjacent fixed
+  badge/status column stays put) — not itself a bug — but with no `title` attribute, a
+  sighted mouse user had no way to see the untruncated text ("Model temp…", "Model curre…"
+  at 1440px). Screen readers were never affected (the truncation is CSS-only; the full text
+  content was always in the DOM). Fix: added `title={layer?.label ?? id}` /
+  `title={meta.name}` / `title={o.platformName}` to the three affected row/button
+  components — native browser tooltip on hover/focus, zero layout impact, zero risk of new
+  overflow.
+- **Tests added**: `src/ui/responsiveLayout.guard.test.ts` (10) — source-level guards
+  (same established pattern as `ThreeSceneCanvas.contextLoss.test.ts`, stated honestly:
+  this project's Vitest has no jsdom/CSS-layout engine, so these assert the fix's specific
+  CSS properties are present, not that the browser renders them correctly — that part is
+  the screenshot verification above) for all four fixes, including an explicit check that
+  the base (unscoped) `.unavailableWrap` rule does **not** carry `width:100%`/`flex-wrap` —
+  guarding against exactly the regression caught above being silently reintroduced.
+  `src/ui/ControlRail/ControlRail.responsive.test.tsx` (3) — a step further than source-
+  grepping: real `renderToString` output asserted to actually contain the `title`
+  attributes (e.g. `title="Chlorophyll-a"`), for `LayerToggles` and `FieldConfiguration` in
+  their default (idle) render — sufficient here since both title values come from
+  store-independent fallbacks. **214 total passing** (up from 201, +13 new), 22 skipped
+  without a live backend (unchanged — no new adapter call this pass).
+- **Verified**: `tsc --noEmit` clean; `npx vitest run` 214/214; `npm run build` clean, 78
+  modules (unchanged — CSS/attribute-only edits, no new imports); backend `pytest` 101/101
+  unchanged; `npm run test:integration` 21/21 unchanged against a live backend (this pass
+  made no backend or adapter change, so live-integration behaviour is identical by
+  construction — re-run anyway, as required, to confirm no accidental breakage).
+- **Verified in an actual browser**, both required viewports (headless Chromium via
+  Playwright, screenshots taken before and after every fix): default scene, Profile tab (2
+  states), Comparison tab (3 states), Provenance tab (both source blocks) all render without
+  clipping/overflow/overlap at 1440x900, matching the desktop 1600x1000 render exactly where
+  no fix was needed; `document.documentElement.scrollWidth` never exceeded `clientWidth` at
+  either width for any screen checked; marker click-to-select re-verified working at 1440px
+  (selected a real observation, `ARGO 5907083`, with correct real data shown). Zero console
+  errors/warnings introduced.
+- **Gaps, stated plainly**:
+  - Coverage is exactly the two viewports this task named (300px-control-rail /
+    1440x900, and desktop / 1600x1000) plus the wider 1920x1080 composition mentioned in
+    Phase 1's locked layout decision was **not** separately re-checked this pass (no defect
+    was expected or found there in any prior gap note, and it is strictly wider than the
+    1600px case already verified clean).
+  - No viewport narrower than 1440px was checked — this project's own locked layout
+    decision (`CLAUDE.md`'s "Locked decisions" #4) specifies only 300px-rail/1440x900 and
+    1920x1080 as target sizes; there is no designed breakpoint below 1440px, so an
+    arbitrarily narrower window (e.g. a real mobile viewport) was out of this task's
+    "around 300px, plus the normal desktop layout" scope and is not claimed to work.
+  - Keyboard-only navigation (tab order, focus-visible outlines) was not separately audited
+    this pass — out of the task's stated focus list (clipping/overflow/overlap/unreadable
+    labels/inaccessible click targets), though the `title` attributes added do also help
+    keyboard/assistive-tech users via the accessible name they contribute.
+  - The `UnavailableNote` fix's `:has()` selector requires a modern browser (broadly
+    supported in Chromium/Firefox/Safari since 2023) — acceptable for this project's target
+    (a demo run in a current browser), but worth a plain-CSS fallback if the deployment
+    target ever needs to support older browsers.
 
 ## Backend correctness hardening (2026-09-12) — the two known bugs from 5A steps 1–2 are now genuinely fixed
 
@@ -193,7 +312,9 @@ broken behaviour.
   layout not pixel-checked on Profile/Comparison/Provenance; chlorophyll's "unavailable
   model source" Provenance-tab branch verified only by unit test, since the UI correctly
   disables reaching it) are unchanged by this pass — not in scope here, still worth a future
-  pass.
+  pass. **The narrow-viewport layout gap is fixed — see "Responsive/accessibility QA pass"
+  above**, a later pass in this same session; the chlorophyll Provenance-tab gap remains
+  open exactly as described.
 
 ## Phase 5A step 3 result (2026-09-12) — real provenance tab; Phase 5A now fully complete
 
@@ -281,7 +402,9 @@ is presentation-only.
     improvement, not a new claim about reachability).
   - `SourceBlock`'s row layout (a fixed 110px label column) is not pixel-checked at the
     narrower 300px control-rail breakpoint — same class of open item noted for
-    `ProfileChart`/`CollocationPanel` in steps 1–2.
+    `ProfileChart`/`CollocationPanel` in steps 1–2. **Checked — see "Responsive/
+    accessibility QA pass" above**: the Provenance tab (both source blocks) renders
+    correctly at 1440x900, no fix needed for this component specifically.
 
 **Phase 5A is now fully complete: all three steps (profile chart, comparison tab,
 provenance tab) implemented, tested, and browser-verified.** Per the proposed phase order
@@ -405,7 +528,8 @@ is unchanged; its own separate Phase 5A step 1 behaviour was not touched by this
     improvement for later. **Fixed 2026-09-12 — see "Backend correctness hardening" above.**
   - Depth-band table columns are fixed-width `<td>`s with no responsive collapse; not
     pixel-checked at the narrower 300px control-rail breakpoint, same open item noted for
-    `ProfileChart` in step 1.
+    `ProfileChart` in step 1. **Checked — see "Responsive/accessibility QA pass" above**:
+    the Comparison tab's depth-band table renders correctly at 1440x900, no fix needed.
   - The "distance (model grid cell to float position)" and "time offset (observation −
     model)" explanatory parentheticals are plain inline text, not a tooltip/help affordance
     — adequate for this round, would read better with a hover explanation in a later pass.
@@ -490,7 +614,9 @@ existing `getObservation`/`getModelColumn` adapter calls, already used elsewhere
     (Phase 5A step 2, explicitly deferred).
   - Chart is a fixed 320×300 viewBox scaled by CSS width:100% — not yet checked against the
     narrower 300px control-rail-driven layout breakpoints from Phase 1; likely fine given
-    `viewBox` scaling but not pixel-verified at that width.
+    `viewBox` scaling but not pixel-verified at that width. **Checked — see "Responsive/
+    accessibility QA pass" above**: confirmed correct at 1440x900 as predicted, `viewBox`
+    scaling handled it with no fix needed.
 
 ## Rendering regression fix (2026-09-11) — black SceneStage after WebGL context loss
 

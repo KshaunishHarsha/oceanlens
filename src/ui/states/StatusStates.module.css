@@ -66,6 +66,38 @@
   opacity: 0.55;
   cursor: help;
 }
+/* Only the ControlRail usage (FieldConfiguration/LayerToggles, whose row
+   is a <button> width:100% child) needs the fix below — ProfileChart's
+   and CollocationPanel's EmptyState-wrapped usage already laid out fine
+   (short centered text, room for the badge beside it) and must stay
+   exactly as it was. Scoping via :has() keeps that untouched rather than
+   applying width/wrap globally to every UnavailableNote on the page. */
+.unavailableWrap:has(> button) {
+  /* At the 300px control-rail breakpoint, a long label (e.g. "Model
+     temperature") plus its own row badge plus this wrap's "UNAVAILABLE"
+     badge can exceed the available width even after the label's own
+     ellipsis truncation bottoms out. flex-wrap lets the badge drop to its
+     own line instead of being silently clipped by the rail's
+     overflow-x: hidden — but only once the row genuinely can't shrink
+     any further (see the child-button override below); without that
+     override this wrapped unconditionally, even at widths with room to
+     spare, because the row child's own width:100% claimed the entire
+     line before the badge was ever considered. */
+  width: 100%;
+  flex-wrap: wrap;
+}
+/* The row rendered inside an UnavailableNote is the same FieldConfiguration
+   /LayerToggles row component used standalone elsewhere, where width:100%
+   is correct (it is the row's only content). Here it has a sibling — the
+   "UNAVAILABLE" badge — so it must share the line with it: flex:1 (grow
+   into whatever the badge doesn't need) instead of a fixed 100%, and
+   min-width:0 so its own label can still ellipsis-shrink all the way
+   before the row as a whole gives up and wraps. */
+.unavailableWrap > button {
+  width: auto;
+  flex: 1 1 0%;
+  min-width: 0;
+}
 
 .unavailableBadge {
   font-family: var(--font-mono);

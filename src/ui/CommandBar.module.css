@@ -62,6 +62,23 @@
   border-radius: var(--radius);
 }
 
+/* At the same breakpoint the rails already narrow to 300/360px (see
+   tokens.css), the command bar's own content (identity + both badges +
+   the dataset/window/region selectors + search + briefing/share buttons)
+   no longer fits in one row and silently scrolled the "Share view" button
+   out of the initial viewport with no visible scroll affordance — a real
+   "horizontal overflow / inaccessible click target" defect, not just
+   untidy. "REAL CACHED DATA" is the one piece here that's fully redundant
+   with what's already shown one row below (ProvenanceStrip's "Processing
+   status: locally validated") and via the per-layer REAL/PRECOMPUTED
+   badges throughout the control rail, so it's the one to drop — the
+   honesty-critical "HISTORICAL DEMONSTRATION" badge stays. */
+@media (max-width: 1599px) {
+  .badgeInternal {
+    display: none;
+  }
+}
+
 .spacer {
   flex: 1;
   min-width: 12px;
