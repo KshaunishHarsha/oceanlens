@@ -3,6 +3,7 @@ import { useAnalysisStore } from '@/state/analysisStore';
 import { useDataStore } from '@/state/dataStore';
 import { filterObservations } from '@/state/filterObservations';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/states/StatusStates';
+import { ProfileChart } from './ProfileChart';
 import styles from './EvidencePanel.module.css';
 
 function ObservationPicker() {
@@ -105,12 +106,7 @@ function TabBody({ tab, id }: { tab: string; id: string }) {
   const obs = observations.find((o) => o.id === id);
 
   if (tab === 'profile') {
-    return (
-      <EmptyState
-        label="Profile chart — implemented in a later phase"
-        detail="Depth-resolved temperature/salinity curves and the RMSE/bias tiles render here once the evidence-panel phase begins."
-      />
-    );
+    return <ProfileChart observationId={id} />;
   }
   if (tab === 'comparison') {
     return (

@@ -1,0 +1,90 @@
+.wrap {
+  padding: 12px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.metaRow {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.metaKey {
+  font-size: var(--fs-caption);
+  color: var(--text-label);
+  width: 84px;
+  flex: none;
+  letter-spacing: var(--ls-caption);
+}
+.metaValue {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+}
+
+.qcSummary {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.axisTick {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  fill: var(--text-label);
+}
+.axisCaption {
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+  fill: var(--text-muted);
+}
+
+.modelGap {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  border-top: 1px solid var(--border-faint);
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+.legendSwatchLine {
+  display: inline-block;
+  width: 18px;
+  height: 2px;
+  flex: none;
+}
+.legendSwatchDot {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  flex: none;
+  font-size: 12px;
+  line-height: 1;
+}

@@ -15,9 +15,9 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 4A steps 1–2 (3D depth-slice scene + real Argo markers/selection) complete.** Step 3 (timeline/opacity/exaggeration already wired since step 1 — remaining: nothing explicit left in the 4-item step list except re-confirming it end-to-end) and step 4 wording overlap; treat 4A as functionally done pending your review. Phase 5A not started. |
+| Current phase | **Phase 4A complete. Phase 5A step 1 (real observed-vs-modelled profile chart) complete.** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. 5A steps 2–3 (real comparison/RMSE tab, provenance polish) not started. |
 | Proposed next order | 0 → 1 → 2 → **2.5** → 3 → **4A** → **5A** → 4B → 5B → 6 → 7. The internal round should prioritise a working 3D model/observation loop before advanced rendering or data expansion. |
-| Repo state | Backend (89 pytest, **unchanged across both 4A steps and the context-loss fix** — no API contract change). `SceneStage` renders a real Three.js/WebGL scene with a depth slice AND clickable real Argo markers wired to `analysisStore.selectObservation`/`hoverObservation`, **and now recovers correctly from a lost WebGL context** (see fix below — this was verified as a genuine browser rendering bug, not a test-only issue, and is now confirmed fixed live). 148 frontend tests green (13 skipped without a live backend), tsc clean, build OK (bundle ~815 KB gzip ~220 KB — `three`, not code-split, noted as a gap). Profile chart and detailed comparison/provenance visualisations are still shells — Phase 5A. |
+| Repo state | Backend (89 pytest, **unchanged across both 4A steps, the context-loss fix, and 5A step 1** — no API contract change; 5A step 1 exercises only the existing `/api/v1/observation(s)`, `/profile`, `/model-column` endpoints through the existing adapter). `SceneStage` renders a real Three.js/WebGL scene with a depth slice AND clickable real Argo markers, recovers correctly from a lost WebGL context. `EvidencePanel`'s Profile tab now renders a **real observed-vs-modelled depth chart** (hand-rolled SVG) for the selected Argo observation's temperature or salinity — see the Phase 5A step 1 entry below. 168 frontend tests green (16 skipped without a live backend), tsc clean, build OK (bundle ~824 KB gzip ~223 KB). Comparison tab and detailed provenance visualisations are still shells — Phase 5A steps 2–3. |
 
 ## Internal-round pivot — authoritative next work
 
@@ -56,6 +56,86 @@ dates and provenance accurately.
   sensor-plugin system.
 - Advanced volume rendering, full colourbar editing/log scaling, production scaling and
   polished outreach mode.
+
+## Phase 5A step 1 result (2026-09-11) — real observed-vs-modelled profile chart
+
+**`EvidencePanel`'s Profile tab no longer shows the "implemented in a later phase" shell.**
+It renders a real depth-vs-variable chart comparing the selected Argo observation's own
+measured levels against the closest real HYCOM model column at that position, for
+temperature or salinity — the two variables Argo floats in this cache actually measure.
+Backend untouched (`git status -- backend/` empty; 89/89 pytest), no new endpoint — only the
+existing `getObservation`/`getModelColumn` adapter calls, already used elsewhere.
+
+- **New**: `src/ui/EvidencePanel/profileComparison.ts` (pure, unit-testable — same split as
+  `sliceTexture.ts`/`sceneStageState.ts`): `nearestTimestamp()`, `buildObservedSeries()`,
+  `buildModeledSeries()`, `computeChartDomain()`, `selectProfileChartView()`.
+  `useProfileComparison.ts` (hook, race-guarded like `useVolumeSlice.ts`: fetches the full
+  observation then its model column; a model-column failure degrades to "observed only",
+  never fails the whole view or fabricates a curve). `ProfileChart.tsx` +
+  `ProfileChart.module.css` (hand-rolled SVG — no charting dependency added, per the
+  project's locked "no chart library" decision).
+- **Real finding, verified by reading the backend source, worked around rather than
+  patched (out of this task's scope)**: `backend/app/services/slice_service.py`'s
+  `get_model_column` does **not** snap to the nearest cached timestamp — an inexact
+  `timestamp` query param silently falls back to `cache.grid.timestamps[0]` (the *first*
+  cached timestamp), unlike `/slice`, which does snap and documents it. `nearestTimestamp()`
+  sidesteps this by always requesting an exact, known-valid timestamp chosen from the
+  already-loaded `analysisStore.availableTimes` axis (confirmed live: `times` always
+  contains the value `nearestTimestamp()` returns — see the integration test). Worth a
+  backend fix later so this isn't just a frontend workaround.
+- **Chart design**: depth axis (y) increases downward, metres labelled; value axis (x)
+  scaled to the real data's own min/max (not the variable's broad default range), so a
+  single profile's actual shape is legible. Observed = solid line in `--cyan-bright` with
+  per-level markers shaped (not just coloured) by QC — filled dot = GOOD/PROBABLY_GOOD,
+  open ring = SUSPECT, cross = BAD — so quality survives greyscale viewing, and a BAD/SUSPECT
+  level is never silently drawn as good or omitted. Modelled = dashed line in `--cyan-deep`
+  (already reserved in `tokens.css` as "MODELED badge outline", now given its first real
+  use). A meta row shows float id, variable+unit, real observed time, real model time, and
+  the real dataset-name provenance strings (Argo + HYCOM) pulled from `dataStore.metadata`,
+  never hardcoded. An HTML (not SVG-only) legend list plus an `aria-label` summary on the
+  `<svg role="img">` cover accessibility; missing/QC-less levels are skipped, never
+  zero-filled or interpolated across.
+- **States covered** (`selectProfileChartView`, verified live in all three below):
+  `unavailable-variable` (current speed / chlorophyll — Argo carries no such sensor; no
+  fetch even attempted), `loading`, `error` (with retry), `no-valid-levels` (a real
+  all-QC-failed profile like `ARGO-4903776-2`, `qc: BAD`, shows an honest empty message
+  quoting its QC summary, not a broken/blank chart), `ready`. No-selection isn't a chart
+  state — `EvidencePanel` already gates the tabs behind a selection.
+- **Tests**: `profileComparison.test.ts` (20) — nearest-timestamp correctness (including
+  "always one of the given real candidates" and "empty candidates → null, never a
+  fabricated timestamp"), observed/modelled series extraction (null/missing-QC skipping,
+  BAD levels retained not hidden), chart-domain padding against the real data extent, and
+  every `selectProfileChartView` branch. `profileComparison.integration.test.ts` (3, live
+  backend only) — a real temperature series end-to-end through the adapter, confirms
+  `ARGO-4903776-2` stays a `200`/empty-series result rather than a `404`, confirms an
+  out-of-region model-column request genuinely rejects. **168 total passing** (up from 148),
+  16 skipped without a live backend (up from 13 — the new integration file).
+- **Verified live** (`npm run test:integration`, backend running): 15/15 passing, including
+  the 3 new cases. Backend `pytest`: 89/89, unchanged.
+- **Verified**: `tsc --noEmit` clean; `vite build` clean, 71 modules (up from 67); dev
+  server curl-probed implicitly via the browser check below.
+- **Verified in an actual browser** (headless Chromium via Playwright, screenshots taken):
+  selecting a real observation (`ARGO 2902770`) renders a real 102-level temperature curve
+  with a visible dashed modelled line near the surface (HYCOM's shallower z-levels — the
+  model line honestly stops where real model data ends, never extended to match the
+  observation's full depth); switching to salinity re-renders correctly with real PSU
+  values; switching to current speed shows the `unavailable-variable` state with its
+  `UNAVAILABLE` badge; selecting the real QC-failed float (`ARGO 4903776`, `qc: BAD`) shows
+  the honest `no-valid-levels` message, not a blank or broken chart. The 3D scene continued
+  rendering correctly throughout (no regression from this change).
+- **Gaps, stated plainly**:
+  - The backend's model-column nearest-timestamp fallback bug (above) is worked around, not
+    fixed — a future change to `get_model_column` itself would be a real, separate
+    improvement.
+  - The modelled line renders only as deep as HYCOM's own z-levels reach at that position;
+    this is correct/honest behaviour (real data has a real depth limit), not a bug, but it
+    was not obvious from the spec and is worth flagging so nobody "fixes" it into a
+    fabricated deep extension.
+  - No RMSE/bias numbers are shown on this tab by design — that is Comparison tab scope
+    (Phase 5A step 2, explicitly deferred).
+  - Chart is a fixed 320×300 viewBox scaled by CSS width:100% — not yet checked against the
+    narrower 300px control-rail-driven layout breakpoints from Phase 1; likely fine given
+    `viewBox` scaling but not pixel-verified at that width.
 
 ## Rendering regression fix (2026-09-11) — black SceneStage after WebGL context loss
 

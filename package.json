@@ -15,7 +15,7 @@
     "data:prepare": "node scripts/prepare-real-data.mjs",
     "data:normalise": "node scripts/prepare-real-data.mjs --normalise",
     "data:validate": "node scripts/validate-real-data.mjs",
-    "test:integration": "OCEANLENS_RUN_INTEGRATION=1 vitest run src/data/ApiOceanDataAdapter.integration.test.ts src/ui/scene/sceneData.integration.test.ts"
+    "test:integration": "OCEANLENS_RUN_INTEGRATION=1 vitest run src/data/ApiOceanDataAdapter.integration.test.ts src/ui/scene/sceneData.integration.test.ts src/ui/EvidencePanel/profileComparison.integration.test.ts"
   },
   "repository": {
     "type": "git",
