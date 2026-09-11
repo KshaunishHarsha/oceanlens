@@ -33,8 +33,23 @@ React 18 specifically. Recorded here so it is a decision, not a surprise.
 ```
 src/
   main.tsx                 entry; mounts <App>
-  App.tsx                  PHASE 1 scaffold — replaced wholesale in Phase 3
+  App.tsx                  renders <AppShell/> — the real operational UI shell (Phase 3)
+  App.smoke.test.tsx       SSR render-smoke test across every store state (no browser needed)
   honesty.test.ts          scans the tree for forbidden data claims
+  vite-env.d.ts            VITE_API_BASE_URL / VITE_USE_LOCAL_CACHE_ADAPTER typing
+
+  ui/                      Phase 3 shell components, one .module.css per section
+    AppShell.tsx            grid: nav / command bar / provenance strip / middle row / timeline
+    NavRail.tsx              7 sections, only Operations wired, rest visibly inert
+    CommandBar.tsx           real dataset/window/region from dataStore, Briefing toggle
+    ProvenanceStrip.tsx      real window label + view ID
+    ControlRail/             FieldConfiguration, LayerToggles, DepthControls,
+                             ObservationFilters (incl. INCOIS/China Argo DAC), PlannedExtensions
+    SceneStage.tsx           shell — real readouts, no rendering (later phase)
+    EvidencePanel/           shell — real observation header/provenance, tab placeholders
+                             for profile/comparison (later phase)
+    TimelineRail.tsx         play/pause/step/speed/scrub over the real timestamp axis
+    states/StatusStates.tsx  shared Loading/Empty/Error/UnavailableNote
 
   domain/                  pure types and vocabularies, no React, no I/O
     variables.ts           OceanVariable + per-variable metadata, formatters
@@ -64,8 +79,9 @@ src/
     FixtureDataAdapter.ts    synthetic, imported by tests only, never the app
 
   state/
-    analysisStore.ts       the single linked analysis store (Zustand)
+    analysisStore.ts       the single linked analysis store (Zustand) — interaction state
     analysisStore.test.ts
+    dataStore.ts            owns the adapter + status/metadata/layers/observations (Phase 3)
 
   styles/
     tokens.css             every colour + type + layout token, from the artboard
@@ -159,35 +175,36 @@ Design notes:
 - `availableTimes` is owned by the data layer and pushed in via `setAvailableTimes`, which
   re-clamps the index if a shorter array loads.
 
-## Component tree (Phase 3 target)
+## Component tree (Phase 3 — implemented as a shell)
 
 ```
 <App>
-  <AppShell>                         CSS grid: nav / bar / strip / rail / stage / panel / timeline
+  <AppShell>                         flex row: nav / (bar + strip + middle row + timeline)
     <NavRail/>                        60px; 7 sections (only Operations wired in MVP)
-    <CommandBar/>                     58px; identity, dataset selector, search, mode toggle, share
-    <ProvenanceStrip/>               26px; dataset, DEMO run id, CF note, locally-validated status
+    <CommandBar/>                     58px; real dataset/window/region, Briefing toggle
+    <ProvenanceStrip/>               26px; real window label, view ID, locally-validated status
     <ControlRail/>                    300–338px
-      <FieldConfiguration/>          variable picker (renderable variables only)
-      <VisualAnalytics/>             layer toggles from the registry; unavailable ones disabled
-      <DepthVerticalPerception/>     non-linear depth slider, exaggeration stepper
-      <ScientificVisualStyling/>     palette, range, scale, opacity
-      <ObservationFilters/>          platform types, time window, good-only, collocated-only
+      <FieldConfiguration/>          4 variables, real per-variable availability
+      <LayerToggles/>                14-layer registry; unavailable ones disabled + real caveat
+      <DepthControls/>               non-linear depth slider, exaggeration stepper
+      <ObservationFilters/>          platform types, INCOIS/China Argo DAC, good-QC, collocated-only
       <PlannedExtensions/>           NOT_AVAILABLE_MVP / PLANNED_EXTENSION layers, labelled
-    <SceneStage/>                    flex; <OceanScene> (Phase 4) + camera toolbar + colorbar + legend
+    <SceneStage/>                    SHELL — real readouts, no canvas/scene (later phase)
     <EvidencePanel/>                 360–398px
-      <ObservationRecordHeader/>     platform id, position, time, real QC state, collocation
-      <EvidenceTabs/>               PROFILE | COMPARISON | PROVENANCE
-        <ProfileTab/>               <ProfileChart> (Phase 5) + RMSE/bias tiles (computed)
-        <ComparisonTab/>            depth-band agreement, collocation diagrams
-        <ProvenanceTab/>            DataSourceDescriptor rows + processing chain
-      <BriefingView/> <OutreachView/>   alternate modes
-    <TimelineRail/>                  106px; transport, anomaly sparkline, event register, scrubber
+      <ObservationPicker/>          real observation list (scene-click selection arrives later)
+      <ObservationHeader/>          real platform id, position, time, QC, identity
+      tabs PROFILE | COMPARISON | PROVENANCE
+        profile/comparison          SHELL — "implemented in a later phase" (no chart, no RMSE tile)
+        provenance                  real DataSourceDescriptor field list (not the processing chain)
+      briefing / outreach modes     SHELL — real container, placeholder body text
+    <TimelineRail/>                  106px; real play/pause/step/speed/scrub over 11 real timestamps
 ```
 
-Phase 3 builds the shell against the four reviewed screenshots plus the five
-deferred state screenshots. The shell should use the API adapter after the
-Phase 2.5 backend refactor; it must not bypass the service boundary.
+Built against the artboard structure documented in the Phase 0 audit and the
+four reviewed screenshots; the five deferred state screenshots were not
+re-reviewed this phase. Uses `ApiOceanDataAdapter` exclusively via
+`dataStore`/`analysisStore` — no component reads `public/data/real/` or the
+API client directly.
 
 ## Testing strategy
 

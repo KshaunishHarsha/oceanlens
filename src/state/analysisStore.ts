@@ -29,6 +29,8 @@ export interface Transect {
 
 export interface ObservationFilters {
   readonly platformTypes: Readonly<Record<PlatformType, boolean>>;
+  /** Argo DATA_CENTRE codes present in the real cache. Both on by default. */
+  readonly dataCentres: Readonly<Record<'IN' | 'HZ', boolean>>;
   /** Hours either side of the model timestamp. */
   readonly timeWindowHours: 6 | 12 | 24;
   readonly goodQualityOnly: boolean;
@@ -81,6 +83,7 @@ export interface AnalysisActions {
   togglePlayback(): void;
   setPlaybackSpeed(s: 1 | 2 | 4): void;
   togglePlatformType(p: PlatformType): void;
+  toggleDataCentre(dac: 'IN' | 'HZ'): void;
   setTimeWindow(h: 6 | 12 | 24): void;
   setGoodQualityOnly(on: boolean): void;
   setCollocatedOnly(on: boolean): void;
@@ -123,6 +126,7 @@ export const INITIAL_STATE: AnalysisState = {
   playback: { playing: false, speed: 1 },
   filters: {
     platformTypes: { ARGO: true, GLIDER: true, CTD: true, BGC: true },
+    dataCentres: { IN: true, HZ: true },
     timeWindowHours: 12,
     goodQualityOnly: true,
     collocatedOnly: false,
@@ -196,6 +200,14 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
       filters: {
         ...s.filters,
         platformTypes: { ...s.filters.platformTypes, [p]: !s.filters.platformTypes[p] },
+      },
+    })),
+
+  toggleDataCentre: (dac) =>
+    set((s) => ({
+      filters: {
+        ...s.filters,
+        dataCentres: { ...s.filters.dataCentres, [dac]: !s.filters.dataCentres[dac] },
       },
     })),
 

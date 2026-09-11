@@ -5,9 +5,11 @@ depth and time, see what the numerical model predicts, what an instrument
 actually observed, and how well they agree.
 
 > Status: under construction, phase by phase. Phases 0–2 (typed foundation,
-> linked analysis state, real-data layer) and the Python/FastAPI backend
-> refactor are complete. The operational UI is the next phase — the backend
-> is not yet wired into the on-screen product.
+> linked analysis state, real-data layer), the Python/FastAPI backend
+> refactor, and the UI shell are complete. `npm run dev` now shows the real
+> operational shell — navigation, controls, filters, timeline — wired to
+> live real data. The 3D scene, profile chart, and detailed comparison views
+> are still shells (each says so on screen) — later phases.
 
 ## Requirements
 

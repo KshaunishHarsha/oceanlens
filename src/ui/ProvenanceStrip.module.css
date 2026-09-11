@@ -1,0 +1,31 @@
+.strip {
+  height: var(--bar-provenance);
+  flex: none;
+  background: var(--surface-strip);
+  border-bottom: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 14px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  color: var(--text-label);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+.name {
+  color: var(--text-tertiary);
+}
+.sep {
+  color: var(--text-separator);
+  padding: 0 9px;
+}
+.good {
+  color: var(--good);
+}
+.grow {
+  flex: 1;
+}
+.dim {
+  color: var(--text-muted);
+}

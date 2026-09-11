@@ -1,0 +1,30 @@
+.root {
+  width: 100%;
+  height: 100vh;
+  min-height: 560px;
+  display: flex;
+  background: var(--surface-stage);
+  color: var(--text-primary);
+  font-size: var(--fs-base);
+  overflow: hidden;
+}
+
+.column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.middle {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+@media (max-width: 900px) {
+  .middle {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+}

@@ -1,0 +1,192 @@
+.rail {
+  height: var(--rail-timeline);
+  flex: none;
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  align-items: stretch;
+  padding: 0 14px;
+  gap: 16px;
+  white-space: nowrap;
+}
+
+.empty {
+  margin: auto;
+  font-size: var(--fs-body);
+  color: var(--text-muted);
+}
+
+.transport {
+  width: 240px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+}
+.clock {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.clockValue {
+  font-family: var(--font-mono);
+  font-size: var(--fs-record);
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.clockDate {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--text-tertiary);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.playBtn {
+  width: 28px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-input);
+  background: transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-tertiary);
+}
+.playBtn[data-active='true'] {
+  background: var(--cyan-fill);
+  border-color: var(--cyan-edge);
+  color: var(--cyan-on);
+}
+.stepBtn {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-tertiary);
+}
+.stepBtn:hover,
+.playBtn:hover {
+  background: var(--surface-hover);
+}
+.speedGroup {
+  display: flex;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-left: 2px;
+}
+.speedBtn {
+  padding: 4px 7px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border-default);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.speedBtn:last-child {
+  border-right: none;
+}
+.speedBtn[data-active='true'] {
+  background: var(--surface-selected);
+  color: var(--text-primary);
+}
+
+.scrubZone {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12px 0 10px;
+}
+.scrubMeta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--text-muted);
+}
+.track {
+  position: relative;
+  height: 30px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+.trackLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 8px;
+  height: 1px;
+  background: var(--border-input);
+}
+.tick {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.tick::before {
+  content: '';
+  width: 1px;
+  height: 8px;
+  background: var(--border-hover);
+}
+.tickLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--cyan-bright);
+  transform: translateX(-50%);
+}
+.playhead::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cyan-bright);
+}
+
+.activeView {
+  width: 180px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  border-left: 1px solid var(--border-default);
+  padding-left: 16px;
+}
+.activeCaption {
+  font-size: 11px;
+  letter-spacing: var(--ls-caption);
+  color: var(--text-label);
+}
+.activeMeta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}

@@ -1,0 +1,79 @@
+.rail {
+  width: var(--rail-nav);
+  flex: none;
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 12px;
+}
+
+.mark {
+  width: 30px;
+  height: 30px;
+  margin-bottom: 18px;
+  display: grid;
+  place-items: center;
+}
+
+.sections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.section {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: transparent;
+  border: none;
+  color: var(--text-disabled);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: not-allowed;
+}
+.section:not(:disabled) {
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.section:not(:disabled):hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.dot {
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 11px;
+  width: 2px;
+  background: transparent;
+}
+.section[data-active='true'] .dot {
+  background: var(--cyan);
+}
+.section[data-active='true'] {
+  color: var(--text-primary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.incois {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: var(--ls-wide);
+  color: var(--text-faint);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}

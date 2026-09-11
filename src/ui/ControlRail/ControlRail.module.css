@@ -1,0 +1,356 @@
+.rail {
+  width: var(--rail-control);
+  flex: none;
+  background: var(--surface-panel);
+  border-right: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
+
+.caption {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  letter-spacing: var(--ls-caption);
+  color: var(--text-label);
+}
+
+.subCaption {
+  composes: caption;
+  margin-top: 10px;
+  margin-bottom: 6px;
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* -- field rows -- */
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border-default);
+  background: var(--surface-raised);
+  border-radius: var(--radius-md);
+  padding: 7px 9px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.fieldRow:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+.fieldRow[data-active='true'] {
+  border-color: var(--cyan-edge);
+  background: var(--surface-selected);
+}
+.fieldRow:disabled {
+  cursor: not-allowed;
+}
+.fieldAbbr {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  width: 28px;
+  flex: none;
+}
+.fieldName {
+  flex: 1;
+  font-size: var(--fs-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fieldUnit {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--text-tertiary);
+  flex: none;
+}
+.fieldBadge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--ls-badge);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  flex: none;
+  color: var(--text-disabled);
+  border: 1px solid var(--border-input);
+}
+.fieldBadge[data-real='true'] {
+  color: var(--cyan);
+  border-color: var(--cyan-deep);
+}
+
+/* -- layer / platform rows -- */
+
+.layerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 27px;
+  padding: 0 7px;
+  border-radius: var(--radius);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-sans);
+}
+.layerRow:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.layerRow[data-on='true'] {
+  color: var(--text-primary);
+}
+.layerRow:disabled {
+  cursor: not-allowed;
+  color: var(--text-disabled);
+}
+
+.checkbox {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-hover);
+  background: transparent;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.checkbox[data-on='true'] {
+  border-color: var(--cyan-edge);
+  background: var(--cyan-fill);
+}
+.checkbox[data-on='true']::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--cyan-tick);
+  border-radius: 1px;
+}
+
+.symbol {
+  width: 12px;
+  text-align: center;
+  font-size: var(--fs-body);
+  flex: none;
+}
+
+.layerLabel {
+  flex: 1;
+  font-size: var(--fs-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layerMeta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  color: var(--text-label);
+  letter-spacing: 0.05em;
+  flex: none;
+}
+
+/* -- toggle switches -- */
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.track {
+  width: 24px;
+  height: 13px;
+  border-radius: 7px;
+  background: var(--surface-track);
+  border: 1px solid var(--border-input);
+  position: relative;
+  flex: none;
+}
+.track[data-on='true'] {
+  background: var(--cyan-fill);
+  border-color: var(--cyan-edge);
+}
+.knob {
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: left 0.1s ease;
+}
+.knob[data-on='true'] {
+  left: 13px;
+  background: var(--cyan-bright);
+}
+.toggleLabel {
+  font-size: var(--fs-small);
+  color: var(--text-secondary);
+}
+
+/* -- depth controls -- */
+
+.depthReadout {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.depthValue {
+  font-family: var(--font-mono);
+  font-size: var(--fs-display);
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.depthUnit {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--text-tertiary);
+}
+.grow {
+  flex: 1;
+}
+.mutedSmall {
+  font-size: var(--fs-small);
+  color: var(--text-tertiary);
+}
+
+.depthTrack {
+  position: relative;
+  height: 26px;
+  margin-top: 9px;
+  cursor: ew-resize;
+}
+.depthTrackBg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-track);
+}
+.depthTrackFill {
+  position: absolute;
+  top: 6px;
+  height: 4px;
+  left: 0;
+  background: var(--cyan-edge);
+  border-radius: 2px;
+}
+.depthKnob {
+  position: absolute;
+  top: 1px;
+  width: 3px;
+  height: 14px;
+  margin-left: -1.5px;
+  background: var(--cyan-bright);
+  border-radius: 1px;
+}
+.depthTicks {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: -6px;
+}
+
+.exagRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.stepper button {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+.stepper button:hover {
+  background: var(--surface-hover);
+}
+.stepperValue {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  color: var(--text-primary);
+  padding: 0 8px;
+}
+
+.footnote {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
+/* -- planned extensions -- */
+
+.plannedRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  opacity: 0.7;
+}
+.plannedStatus {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--ls-badge);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  flex: none;
+  color: var(--text-disabled);
+  border: 1px solid var(--border-input);
+}

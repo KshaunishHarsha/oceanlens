@@ -1,0 +1,79 @@
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--fs-body);
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border-input);
+  border-top-color: var(--cyan-bright);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.detail {
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  max-width: 320px;
+  overflow-wrap: break-word;
+}
+
+.error .errorIcon {
+  color: var(--bad);
+  font-size: 16px;
+}
+
+.retry {
+  margin-top: 4px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-caption);
+  color: var(--cyan);
+  background: transparent;
+  border: 1px solid var(--cyan-edge);
+  border-radius: var(--radius);
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.retry:hover {
+  background: var(--surface-hover);
+  color: var(--cyan-hover);
+}
+
+.unavailableWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.55;
+  cursor: help;
+}
+
+.unavailableBadge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--ls-badge);
+  color: var(--text-disabled);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  flex: none;
+}

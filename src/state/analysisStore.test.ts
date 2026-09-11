@@ -115,6 +115,17 @@ describe('layers and filters', () => {
   it('defaults to good-quality-only, which matters for real Argo data', () => {
     expect(s().filters.goodQualityOnly).toBe(true);
   });
+
+  it('defaults both real Argo data centres to on', () => {
+    expect(s().filters.dataCentres.IN).toBe(true);
+    expect(s().filters.dataCentres.HZ).toBe(true);
+  });
+
+  it('toggles one data centre without disturbing the other', () => {
+    s().toggleDataCentre('HZ');
+    expect(s().filters.dataCentres.HZ).toBe(false);
+    expect(s().filters.dataCentres.IN).toBe(true);
+  });
 });
 
 describe('resetScientificDefaults', () => {

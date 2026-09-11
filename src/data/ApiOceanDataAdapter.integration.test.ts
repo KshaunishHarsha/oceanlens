@@ -94,4 +94,37 @@ describe.skipIf(!process.env['OCEANLENS_RUN_INTEGRATION'])('ApiOceanDataAdapter 
     const times = await adapter.getAvailableTimes('chlorophyll');
     expect(times).toEqual([]);
   });
+
+  it('runs the exact sequence useDataStore.initialize() runs, end-to-end, against the live backend', async () => {
+    if (!backendReachable) return;
+    const adapter = new ApiOceanDataAdapter();
+    const [metadata, layers, observations, variableTimes] = await Promise.all([
+      adapter.getMetadata(),
+      adapter.getLayerRegistry(),
+      adapter.getObservations({}),
+      Promise.all(
+        (['temperature', 'salinity', 'currentSpeed', 'chlorophyll'] as const).map((v) =>
+          adapter.getAvailableTimes(v),
+        ),
+      ),
+    ]);
+
+    expect(metadata.viewId).toBe('DEMO-OCN-2023-0925-BB');
+    expect(metadata.windowLabel).toBe('Historical demonstration window');
+    expect(observations.length).toBe(28);
+    expect(observations.filter((o) => o.identity?.dataCentre === 'IN').length).toBe(19);
+
+    const [tempTimes, salTimes, currentTimes, chlTimes] = variableTimes;
+    expect(tempTimes!.length).toBe(11);
+    expect(salTimes!.length).toBe(11);
+    expect(currentTimes!.length).toBe(11); // real u/v are in this cache
+    expect(chlTimes).toEqual([]); // genuinely unavailable, not fabricated
+
+    expect(layers['obs.argo']!.source.status).toBe('REAL_CACHED');
+    expect(layers['model.temperature']!.source.status).toBe('PRECOMPUTED_FROM_REAL');
+    const unsupported = ['obs.bgc', 'obs.glider', 'obs.ctd', 'satellite.sst', 'satellite.chlorophyll', 'advisory.incois', 'ml.anomaly'] as const;
+    for (const id of unsupported) {
+      expect(['NOT_AVAILABLE_MVP', 'PLANNED_EXTENSION']).toContain(layers[id]!.source.status);
+    }
+  });
 });

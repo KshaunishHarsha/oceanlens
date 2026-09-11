@@ -15,9 +15,50 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 2.5 (Python/FastAPI backend refactor) complete — awaiting approval before Phase 3 UI wiring.** |
+| Current phase | **Phase 3 (UI shell) complete — awaiting approval before Phase 5 (evidence panel internals).** |
 | Phase order | 0 → 1 → 2 → **2.5** → 3 → **5** → **4** → 6 → 7 (backend first; evidence before advanced scene) |
-| Repo state | Backend (89 pytest) serves the real cache; frontend has `ApiOceanDataAdapter` (default) + `CachedRealDataAdapter` (retained, gated). 84 frontend tests green, tsc clean, build OK. **UI not yet wired to either adapter** — no product screens changed. |
+| Repo state | Backend (89 pytest) serves the real cache. Frontend App.tsx now renders the real operational shell (`src/ui/`), wired to `ApiOceanDataAdapter` via `dataStore`/`analysisStore`. 93 frontend tests green (7 skipped without a live backend), tsc clean, build OK. **Scene rendering, profile chart, and detailed comparison/provenance visualisations are still shells — explicitly excluded from Phase 3.** |
+
+## Phase 3 result (2026-09-11) — UI shell, AWAITING APPROVAL
+
+**`src/App.tsx` is no longer the Phase 1 scaffold — it now renders `<AppShell/>`, the real
+operational shell.** Ported from the Claude Design artboard structure documented in Phase 0.
+
+- **New store**: `src/state/dataStore.ts` — owns the adapter instance + `getMetadata()` /
+  `getLayerRegistry()` / `getObservations({})` / `getAvailableTimes()` for all 4
+  `OceanVariable`s, called once from `AppShell`'s mount effect. `status: idle|loading|ready|
+  error`. `analysisStore.ts` gained `filters.dataCentres: {IN, HZ}` + `toggleDataCentre()`
+  (additive, matches the backend's real DAC filter).
+- **Components** (`src/ui/`, one `.module.css` per section, all reading `var(--token)` from
+  Phase 1's `tokens.css`): `NavRail` (7 sections, only Operations wired — rest visibly inert,
+  not fake-clickable), `CommandBar` (real dataset/window/region from `/metadata`, Briefing
+  toggle wired), `ProvenanceStrip` (real window label + view ID), `ControlRail/` →
+  `FieldConfiguration` (4 variables, real per-variable availability — chlorophyll disabled +
+  `UnavailableNote`), `LayerToggles` (14-layer registry, unsupported ones disabled with their
+  real caveat as the tooltip), `DepthControls` (non-linear 0/50/100/250/500/1000 slider +
+  exaggeration stepper), `ObservationFilters` (platform type + **INCOIS/China Argo DAC** +
+  good-QC + collocated-only, counts computed from the real 28-observation list),
+  `PlannedExtensions` (the unsupported layers, explicitly). `SceneStage` and `EvidencePanel`
+  are **shells only** — real readouts (variable/depth/time/exaggeration, selected
+  observation's real position/QC/identity/provenance fields) but no canvas, no chart, no
+  RMSE/bias tiles, no comparison bands — each says "implemented in a later phase" where it
+  stops short, per your explicit exclusion list. `TimelineRail` plays/pauses/steps/scrubs
+  across the **real 11-timestamp axis** from `/api/v1/times`.
+- **No component reads `public/data/real/` or the API client directly** — everything goes
+  through `dataStore`/`analysisStore`, which go through `ApiOceanDataAdapter`.
+- **Verification without a browser tool**: `tsc`/`vite build` clean (57 modules now
+  bundled, up from 24 — proof the shell is actually wired in, not dead code); a new
+  `App.smoke.test.tsx` SSR-renders the full tree (`renderToString`) across idle/loading,
+  error, ready, all 3 evidence tabs with a selection, briefing/outreach, chlorophyll-selected,
+  and combined-filter states — 7 cases, all render without throwing; the live-backend
+  integration suite grew a test that runs `dataStore.initialize()`'s exact call sequence
+  against a running `uvicorn` and asserts on the real counts (28 obs, 19 INCOIS, 11
+  timestamps × 3 real variables, chlorophyll `[]`). Dev server (`vite --port 5173`) probed via
+  curl for every new module — all 200, no transform errors in the Vite log. **No actual
+  browser was available in this session — no pixel screenshot, no real console-error check.**
+  Flag this to the user if a visual sign-off is needed beyond structural/SSR verification.
+- Layout: rails already responsive from Phase 1 tokens (300/360 below 1600px, 338/398 at
+  1920). Not verified in an actual browser viewport — CSS-only, same caveat as above.
 
 ## Phase 2 result (2026-09-10) — APPROVED; BACKEND REFACTOR NEXT
 
@@ -34,9 +75,11 @@ real model data).
   axis — did not normalise cleanly).
 - **Real HYCOM GOFS 3.1** (GLBy0.08 expt_93.0), NCSS subset, 11 daily 00:00Z snapshots:
   `water_temp`, `salinity` (`ts3z`) **and `water_u`, `water_v` (`uv3z`)** — currents ARE real.
-- **Real collocation** computed from the cached arrays: e.g. ARGO-5907083-2 vs HYCOM
-  RMSE 0.67 °C, bias **+0.38 °C** (real warm model bias), 0.4 km, ~14 h offset.
-  ARGO-4903775-2 near-perfect (bias −0.02). No hard-coded stats anywhere.
+- **Real collocation** computed from the cached arrays. No hard-coded stats anywhere.
+  **SUPERSEDED — see the Phase 2.5 section below for the authoritative numbers.** This
+  entry originally quoted "RMSE 0.67 °C, bias +0.38 °C" for ARGO-5907083-2 from an ad-hoc
+  0–500 m verification script; the adapter's real method gives RMSE 0.2434 °C, bias
+  +0.1816 °C. Never cite 0.67/0.38 as a current result.
 - Cache in `public/data/real/`: `manifest.json` (full provenance, checksums, transforms),
   `model/{grid.json, temperature.f32, salinity.f32, currentU.f32, currentV.f32, columns.json}`,
   `observations/profiles.json`. **13 MB on disk, 5.3 MB gzipped.** Committed.
