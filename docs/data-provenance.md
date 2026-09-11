@@ -80,23 +80,35 @@ node scripts/prepare-real-data.mjs            # download + normalise
 node scripts/validate-real-data.mjs           # gate
 ```
 
-Raw downloads land in `.cache/raw/` (git-ignored). The normalized cache in
-`public/data/real/` is committed and will be read by the FastAPI backend. After
-the Python refactor, the browser will not parse NetCDF or read scientific
-arrays directly. It will receive normalized, provenance-aware responses
-through the API. No network access is required to run the application after
-the cache and backend environment have been prepared.
+Raw downloads land in `.cache/raw/` (git-ignored). The normalised cache in
+`public/data/real/` is committed and is read **directly by the FastAPI
+backend** (`backend/app/data/cache_reader.py`) — no copy. The browser does
+not parse NetCDF or read the scientific arrays directly on the default path;
+it receives normalised, provenance-aware JSON through the API
+(`ApiOceanDataAdapter`). No network access is required to run the application
+after the cache and backend environment have been prepared.
 
 ## Backend provenance contract
 
-The FastAPI service must preserve the provenance classification in every data
-response. At minimum, responses should include the dataset name, source status,
-source URL, retrieval timestamp, variable, unit, transformation summary and a
-cache identifier or checksum where applicable.
+Implemented. Every FastAPI response touching data includes a `source`
+(`SourceDescriptor`): dataset name, status, source URL, retrieval timestamp,
+variables, units, coordinate system, temporal/depth/spatial coverage, QC
+convention, the full ordered transformation list, licence and caveats — see
+`docs/api.md`. The API's own status vocabulary
+(`REAL_SOURCE_LOCALLY_CACHED`, `PRECOMPUTED_FROM_REAL_SOURCE`,
+`DERIVED_FROM_REAL_SOURCE`, `SYNTHETIC_TEST_FIXTURE`, `NOT_AVAILABLE_MVP`,
+`PLANNED_EXTENSION`) is deliberately distinct from both the vocabulary this
+document uses above and the frontend's internal `DataStatus`; the full
+three-way mapping — manifest status → API status → frontend status — is
+documented in `docs/data-contract.md`.
 
-The backend owns NetCDF parsing, QC mapping, depth conversion, interpolation,
-collocation and numerical statistics. The frontend displays those results and
-must not silently recalculate them from raw files or substitute synthetic data.
+The backend owns NetCDF parsing (a real, tested capability —
+`backend/app/data/netcdf_reader.py` — though the running demo reads the
+already-normalised cache, not raw files), QC mapping, depth conversion,
+interpolation, collocation and every numerical statistic. The frontend
+displays those results and does not recalculate them from raw files or
+substitute synthetic data — enforced by `backend/tests/` (89 cases) and
+`src/data/ApiOceanDataAdapter.test.ts`.
 
 ## Attribution
 

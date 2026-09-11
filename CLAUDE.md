@@ -15,9 +15,9 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 2 complete — approved for Phase 2.5 Python/FastAPI backend refactor.** |
+| Current phase | **Phase 2.5 (Python/FastAPI backend refactor) complete — awaiting approval before Phase 3 UI wiring.** |
 | Phase order | 0 → 1 → 2 → **2.5** → 3 → **5** → **4** → 6 → 7 (backend first; evidence before advanced scene) |
-| Repo state | Real Argo + HYCOM cache in `public/data/real/`. 74 tests green, tsc clean, build OK. Backend refactor not yet started. |
+| Repo state | Backend (89 pytest) serves the real cache; frontend has `ApiOceanDataAdapter` (default) + `CachedRealDataAdapter` (retained, gated). 84 frontend tests green, tsc clean, build OK. **UI not yet wired to either adapter** — no product screens changed. |
 
 ## Phase 2 result (2026-09-10) — APPROVED; BACKEND REFACTOR NEXT
 
@@ -58,36 +58,48 @@ real model data).
   satellite chlorophyll, advisories, ML anomaly — all `PLANNED_EXTENSION` /
   `NOT_AVAILABLE_MVP`, none faked.
 
-## Phase 2.5 — approved Python/FastAPI backend refactor
+## Phase 2.5 result (2026-09-11) — Python/FastAPI backend refactor, AWAITING APPROVAL
 
-Before the React UI is wired to scientific data, move scientific processing into a Python
-backend. The frontend remains React + TypeScript, but it must consume data through an
-`ApiOceanDataAdapter` and FastAPI services.
+**Fully implemented and tested. UI not touched — no product screens exist to wire yet.**
 
-Python owns:
-
-- NetCDF reading and normalization
-- QC mapping and depth conversion
-- Interpolation and spatial subsetting
-- Model–observation collocation
-- RMSE, mean bias and agreement statistics
-- Provenance-aware responses
-
-The browser must not parse NetCDF or read scientific arrays directly. The approved flow is:
-
-```text
-Argo / HYCOM NetCDF → Python normalization → validated cache → FastAPI → TypeScript adapter → React UI
-```
-
-Planned backend stack: Python 3.11+, FastAPI, Uvicorn, Pydantic, NumPy, xarray,
-netCDF4 or h5netcdf, pytest and httpx. The backend is local/offline-capable for the
-hackathon and does not download data at startup.
-
-Backend documentation:
-
-- `docs/backend.md`
-- `docs/api.md`
-- `docs/data-contract.md`
+- **Backend** (`backend/`, Python 3.12 venv): `app/data/` (cache_reader — loads
+  `public/data/real/` once into numpy arrays, no copy, no network; netcdf_reader — a
+  genuine tested NetCDF reader for raw Argo/HYCOM, exercised against `.cache/raw/`, NOT
+  on the demo request path; array_loader), `app/science/` (qc, depth, interpolation,
+  geometry, statistics, collocation — direct ports of `src/domain/stats.ts`), `app/models/`
+  (Pydantic — own `DataStatus` enum, distinct from the frontend's, see below), `app/services/`,
+  `app/api/` (7 route files, all `GET`, CORS locked to :5173). **89/89 pytest passing.**
+- **Endpoints**: `/health`, `/api/v1/{metadata,times,observations,observations/{id},
+  slice,model-column,profile/{id},collocation/{id},provenance}`. `model-column` was added
+  beyond the brief's list — needed to fulfil `OceanDataAdapter.getModelColumn`.
+- **Real data through every route**: 28 Argo profiles (19 INCOIS, 9 China Argo) — verified
+  live via curl and pytest. HYCOM T/S/U/V real. Collocation computed per-request in Python,
+  never hard-coded.
+- **Numeric cross-check**: an independent Node.js replication of the collocation algorithm
+  (not copied from either implementation) matched the Python backend to 4 decimal places on
+  4 real profiles. **Correction to the Phase 2 numbers below**: those used a cruder ad-hoc
+  script capped at 0–500 m. The adapter's real method (both languages agree) gives
+  ARGO-5907083-2 RMSE **0.2434 °C**, bias **+0.1816 °C** — not 0.67/+0.38. Full table +
+  1e-3-tolerance test: `docs/data-contract.md`, `backend/tests/test_collocation.py`.
+- **Provenance vocabulary — THREE strings for the same concept, one mapping each hop**:
+  manifest.json (`REAL_CACHED`...) → API `DataStatus` (`REAL_SOURCE_LOCALLY_CACHED`...,
+  `backend/app/services/provenance_service.py`) → frontend `DataStatus`
+  (`ApiOceanDataAdapter.mapApiStatus()`). Never conflate these three when reading code.
+- **Frontend**: `src/data/ApiOceanDataAdapter.ts` is now the **default** (`createDataAdapter()`
+  in `src/data/index.ts`). `CachedRealDataAdapter` retained, gated behind
+  `VITE_USE_LOCAL_CACHE_ADAPTER=true` (dev-only, logs a warning if set).
+  `src/data/api/{client,types}.ts`. `ObservationQuery.dataCentres?` added (additive).
+  `getObservations()` returns lightweight summaries (no depth arrays — cheap list query);
+  `getObservation(id)` fetches the full temperature+salinity profile. This split is
+  deliberate — see `docs/data-contract.md`.
+- **Tests**: `ApiOceanDataAdapter.test.ts` (fetch-mocked, always runs, 84 total incl. rest of
+  suite) + `ApiOceanDataAdapter.integration.test.ts` (real HTTP, `npm run test:integration`,
+  skips cleanly without a live backend — verified both ways: 5/5 pass against a running
+  uvicorn, and clean skip without one).
+- Docs written: `docs/backend.md`, `docs/api.md`, `docs/data-contract.md` (new);
+  `README.md`, `docs/architecture.md`, `docs/data-provenance.md` updated in place.
+  `docs/phase-0-audit.md` untouched, as instructed.
+- **Nothing committed yet** — see the report for the exact commit about to be made.
 
 ## Phase 1 result (2026-09-10) — APPROVED
 

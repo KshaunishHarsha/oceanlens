@@ -37,6 +37,8 @@ export interface ColumnQuery {
 export interface ObservationQuery {
   readonly bounds?: GeoBounds;
   readonly platformTypes?: readonly PlatformType[];
+  /** Argo DATA_CENTRE codes, e.g. ["IN"] for INCOIS, ["HZ"] for China Argo. */
+  readonly dataCentres?: readonly string[];
   /** ISO 8601 UTC window. */
   readonly from?: string;
   readonly to?: string;

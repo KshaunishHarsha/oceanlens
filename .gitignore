@@ -2,6 +2,14 @@ node_modules/
 dist/
 .DS_Store
 *.local
+.env.local
+
+# Python backend
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
+*.pyc
 
 # Raw upstream downloads staged by scripts/prepare-real-data.mjs.
 # The normalised cache under public/data/real/ IS committed; these are not.

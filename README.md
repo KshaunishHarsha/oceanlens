@@ -4,17 +4,21 @@ A browser-native ocean **evidence workspace** for INCOIS: for a chosen location,
 depth and time, see what the numerical model predicts, what an instrument
 actually observed, and how well they agree.
 
-> Status: under construction, phase by phase. Phases 0–2 complete (typed
-> foundation, linked analysis state, and a real-data layer). The next approved
-> phase is the Python/FastAPI backend refactor. The operational UI is Phase 3+.
+> Status: under construction, phase by phase. Phases 0–2 (typed foundation,
+> linked analysis state, real-data layer) and the Python/FastAPI backend
+> refactor are complete. The operational UI is the next phase — the backend
+> is not yet wired into the on-screen product.
 
 ## Requirements
 
 - Node ≥ 20 (developed on Node 26)
-- Python ≥ 3.11 for the planned backend (Python 3.12 is used locally)
-- No login or API key is required for the offline demonstration.
+- Python ≥ 3.11 (developed on Python 3.12)
+- No login, API key, or network access is required for the offline
+  demonstration once the cache and backend environment are prepared.
 
 ## Run
+
+**Frontend:**
 
 ```bash
 npm install
@@ -22,44 +26,43 @@ npm run dev            # http://localhost:5173
 ```
 
 ```bash
-npm test               # unit tests (numerics, store, honesty, cache)
 npm run typecheck      # tsc --noEmit, strict
-npm run build          # tsc + vite build
+npm test               # unit tests — numerics, store, honesty, cache, API adapter mapping
+npm run test:integration  # real HTTP tests against a running backend (see below)
+npm run build           # tsc + vite build
 ```
 
-## Backend direction
-
-The approved next phase moves scientific data access and processing into a
-Python/FastAPI backend. The frontend remains React + TypeScript, but will use an
-API adapter instead of reading scientific arrays directly.
-
-Python will own NetCDF reading, normalization, QC mapping, depth conversion,
-interpolation, collocation, statistics and provenance-aware responses. FastAPI
-will serve metadata, observations, profiles, slices, collocations and
-availability status.
-
-Planned local commands:
+**Backend:**
 
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pytest                              # 89 tests
 uvicorn app.main:app --reload --port 8000
 ```
 
-The frontend will use:
-
-```text
-VITE_API_BASE_URL=http://localhost:8000
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/api/v1/metadata
+curl http://localhost:8000/api/v1/provenance
 ```
+
+The frontend talks to the backend via `VITE_API_BASE_URL` (defaults to
+`http://localhost:8000`; see `.env.example`). Everything scientific — NetCDF
+parsing, QC mapping, depth conversion, interpolation, collocation, RMSE, mean
+bias — runs in the Python backend; the frontend only requests, displays, and
+manages interaction state. Full reference: [`docs/backend.md`](docs/backend.md),
+[`docs/api.md`](docs/api.md), [`docs/data-contract.md`](docs/data-contract.md).
 
 ## Real data
 
 The project uses a **locally cached extract of real public data** from
-`public/data/real/` (committed, ~13 MB / ~5 MB gzipped). After the backend
-refactor, FastAPI will read this cache and the browser will receive normalized
-responses through the API. The demo remains offline-capable after preparation.
+`public/data/real/` (committed, ~13 MB / ~5 MB gzipped). FastAPI reads this
+cache directly and serves normalised, provenance-aware JSON; the browser never
+parses NetCDF or reads the scientific arrays itself. The demo is fully
+offline-capable once the cache and backend environment are prepared.
 
 | Dataset | Real or synthetic | Source | Variables | Time range | Transformations |
 |---|---|---|---|---|---|
@@ -92,12 +95,21 @@ intermittent, so the preparation script retries with backoff.
 Nothing in this project is labelled *verified*, *official*, *live* or
 *real-time*. Identifiers shown in the UI are `DEMO-` prefixed. The demonstration
 window is historical and labelled as such. A unit test (`src/honesty.test.ts`)
-fails the build if a forbidden claim string reappears in the source.
+fails the build if a forbidden claim string reappears in the source; the
+backend's own manifest-status translation and provenance responses are
+covered by `backend/tests/test_provenance.py`.
 
 ## Architecture
 
-See [`docs/architecture.md`](docs/architecture.md). In brief: React + TypeScript
-and Zustand for the browser client; Python + FastAPI for scientific data
-services; a validated local real-data cache; a typed API adapter; a single
-linked analysis store; hand-rolled SVG for charts; and a canvas-2D + SVG
-oblique scene (Phase 4) behind a renderer interface.
+See [`docs/architecture.md`](docs/architecture.md). In brief: React +
+TypeScript and Zustand for the browser client, talking over HTTP to a Python +
+FastAPI backend that owns NetCDF ingestion, QC/depth/statistics, and
+provenance; the frontend's `ApiOceanDataAdapter` is the only thing that talks
+to it, translating typed JSON into the app's existing domain types
+([`docs/data-contract.md`](docs/data-contract.md) documents that boundary in
+full). A single linked analysis store, hand-rolled SVG for charts, and a
+canvas-2D + SVG oblique scene (next phase) behind a renderer interface.
+
+The `CachedRealDataAdapter` (reads the cache directly in the browser) is
+retained for fallback/comparison testing only — never the default; see
+`docs/data-contract.md`.
