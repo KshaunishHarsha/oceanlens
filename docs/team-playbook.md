@@ -28,6 +28,56 @@ See the evidence, quality information, source, and limitations
 
 This supports the SIH/INCOIS goal of a browser-native 3D ocean visualization system that integrates model output and in-situ observations.
 
+### Why this matters — explanation for non-ocean judges
+
+The ocean is not a flat map. Temperature, saltiness, and currents can be very
+different near the surface, 100 m below it, and 1,000 m below it. A numerical
+ocean model provides a useful **continuous regional estimate**, but it is still
+a calculation. An Argo float provides a **real measurement**, but only at the
+few places where floats happen to be.
+
+OceanLens combines their strengths:
+
+```text
+Model: broad coverage of the whole sea, at many depths and times
+                              +
+Argo: real vertical measurement at one location and time
+                              ↓
+OceanLens: explore the model anywhere; validate it where evidence exists
+```
+
+This is why the product is an *evidence workspace*, not only a map. A colourful
+model picture answers “what does the model estimate?” OceanLens also helps a
+user ask “what evidence supports that estimate here?” and “what are its
+limitations?”
+
+### Target users and their use cases
+
+| Target user | What they need | What OceanLens changes |
+|---|---|---|
+| INCOIS ocean forecaster / analyst (primary user) | Quickly inspect a condition at a place, depth, and time before supporting an advisory or internal assessment. | Replaces switching among a model viewer, profile files, charts, and provenance records. |
+| Ocean modeller / researcher | Check whether a model is systematically too warm/cool or too salty/fresh at real profiles. | Shows the model and measured profile together with repeatable metrics. |
+| Search-and-rescue, fisheries, hazard, or climate-support team | Obtain understandable regional context before using their own operational procedures. | Makes depth and time patterns visible, with clear limits rather than a black-box answer. |
+| Student, policymaker, or public visitor (secondary) | Understand why ocean data is complex and why observations matter. | Turns arrays and NetCDF files into an interactive 3D explanation. |
+
+OceanLens does **not** issue a rescue instruction, fishery advisory, or hazard
+warning by itself. It is decision support: it makes data and uncertainty easier
+for qualified users to inspect.
+
+### Why each main feature exists
+
+| Feature | Why it exists | What it lets a user say or do |
+|---|---|---|
+| 3D depth slice | Ocean processes vary vertically, so a 2D surface map is incomplete. | “Show me this variable at 100 m, not only at the surface.” |
+| Time control | A single snapshot can hide change over time. | Step through the historical daily snapshots. |
+| Variable control | Temperature, salinity, and current speed describe different parts of ocean state. | Choose the evidence relevant to the question. |
+| Click-anywhere model probe | Models cover the full grid, whereas floats do not. | Analyse a real model column at any selected grid location. |
+| Argo markers | Real observations give ground truth at specific locations. | Select a measured profile from the same 3D scene. |
+| Profile chart | A float measures many depths, not one value. | Compare how a variable changes through the water column. |
+| Comparison metrics | Visual comparison alone is subjective. | Quantify model agreement and explain its limits. |
+| Provenance and QC | Scientific decisions require origin, processing, and quality context. | Show exactly where a result came from and what was excluded. |
+| Briefing Mode | Not every operational user speaks in RMSE and bias. | Ask a constrained plain-language question about the selected evidence. |
+
 ## 3. What is in the prototype now
 
 The internal-round prototype is complete and uses real, locally cached data.
@@ -44,6 +94,11 @@ The internal-round prototype is complete and uses real, locally cached data.
 | Data quality | Per-level Argo quality flags are retained. Bad data is never silently treated as good data. |
 | Honesty | Unsupported sources and variables are visibly labelled unavailable or planned; no synthetic science is shown in the app. |
 | Reliability | The scene recovers from a lost WebGL context, an issue that was found and fixed through real browser testing. |
+| Click-anywhere analysis | Clicking the coloured model plane selects a real latitude/longitude and loads the model's full vertical column there. It is explicitly labelled **model-only** unless an Argo observation is selected. |
+| Live scene probe | A crosshair cursor reports live latitude, longitude, selected depth/time, and the nearest real model-grid value; land/missing cells remain unavailable. |
+| Selected-point visibility | A high-contrast magenta target ring, crosshair, and vertical beacon mark the selected model point in 3D. |
+| Flexible workspace | Controls and Evidence panels can retract, giving the WebGL scene more room; it resizes with the available workspace. |
+| Briefing Mode | A server-side OpenAI-backed explanation of selected temperature/salinity evidence, constrained to supplied cached facts; it is not general web chat. |
 
 ### What a user can demonstrate
 
@@ -53,6 +108,8 @@ The internal-round prototype is complete and uses real, locally cached data.
 4. Open **Profile** to compare measured and modelled temperature by depth.
 5. Open **Comparison** to see RMSE, bias, distance, time offset, and depth-band agreement.
 6. Open **Provenance** to explain exactly where the two datasets came from and what processing happened.
+7. Click an empty ocean location to show that model analysis works even where no float exists; point out that it is correctly labelled model-only.
+8. Open **Briefing Mode** to translate the selected validated evidence into plain language.
 
 ## 4. Demonstration data: scope and honesty
 
@@ -110,6 +167,22 @@ Plain-language explanation: HYCOM is a physics-based ocean simulation. Instead o
 
 Never turn these into fake demo data. Say they are planned extensions.
 
+### Why a user can analyse any point but cannot validate every point
+
+The model is a gridded field, so OceanLens can request a vertical model column
+at any clicked coordinate inside the cached Bay of Bengal domain. The backend
+uses the real model grid and its existing location sampling, then returns the
+actual model timestamp and depth values used.
+
+An RMSE or bias requires two datasets at comparable positions and times. It is
+only scientifically meaningful where there is a real observed profile. Thus:
+
+| Selected location | What OceanLens can honestly show |
+|---|---|
+| Any point on the model plane | Model variable, depth slice value, time, and full model depth column. |
+| An Argo float point | Everything above, plus observed profile, model–observation metrics, depth-band agreement, and a grounded briefing. |
+| A point with no suitable observation | Model-only analysis. No fabricated RMSE, bias, or confidence score. |
+
 ## 6. Data preparation and quality handling
 
 The application runs offline after setup because the real scientific data is preprocessed and committed as a compact cache in `public/data/real/`.
@@ -163,6 +236,30 @@ Important rules:
 - Bad-QC or no-overlap profiles produce zero valid samples and no invented RMSE or bias.
 - RMSE and mean bias are calculated by the Python backend, not hand-entered in the frontend.
 
+### What the metrics imply — and what they do not
+
+- **Lower RMSE** means the model and float were closer at the valid paired
+  depths for this one comparison. It does not prove the model is accurate
+  everywhere in the Bay of Bengal.
+- **Bias near zero** means the model does not have a strong average direction
+  of error for that profile. It can still have large errors at individual
+  depths, which is why depth bands are shown too.
+- **A large distance or time offset** makes a mismatch less conclusive: the
+  ocean can genuinely vary between the float and model grid location, or
+  between their timestamps.
+- **More valid levels** means more evidence supports the statistic. It is not
+  a percentage accuracy score.
+- **A dash (`—`) is a result.** It means the required evidence does not exist
+  or did not pass quality control; it never means zero error.
+
+Useful judge-ready example:
+
+> “An RMSE of 0.70 °C means that, across the valid depths for this historical
+> profile, the model was typically about 0.70 °C away from the float's real
+> temperature measurement. A mean bias of −0.21 °C means it tended to be
+> slightly cooler on average. We still inspect the depth bands, distance, and
+> time offset before drawing a conclusion.”
+
 ## 8. Technical architecture
 
 ```text
@@ -189,14 +286,29 @@ Browser user
 - SVG renders the profile and comparison graphics.
 - `ApiOceanDataAdapter` is the standard frontend boundary to the backend. Components must not read raw cache files directly.
 - The 3D scene has recovery handling for lost WebGL contexts.
+- Raycasting maps a mouse position to the real horizontal model plane. A
+  shared geographic projection converts that point to latitude/longitude;
+  the inverse mapping is unit-tested so a selected point cannot drift from
+  the displayed slice.
+- The live probe samples the nearest real visual-grid cell. Missing/land cells
+  render as unavailable rather than a made-up number.
+- A `ResizeObserver` resizes the renderer when retractable panels change the
+  scene dimensions.
 
 ### Backend
 
 - Python + FastAPI.
 - Loads the local real-data cache once into memory.
 - Owns NetCDF ingestion capability, data-quality processing, model interpolation, collocation, and statistics.
-- API is read-only: all public routes are `GET` routes and all responses are JSON.
+- The scientific-data API is read-only (`GET` JSON routes). The sole exception
+  is the optional, server-side `POST` Briefing endpoint, which requests a
+  textual explanation and never alters cached science data.
 - Never returns partial/synthetic science when the cache is unavailable.
+- Briefing Mode is the one deliberate `POST` route. It sends only the selected
+  collocation facts and optional focused question to the OpenAI Responses API
+  from the backend. The API key is read server-side from `.env`; it is never
+  bundled into the browser. Requests set `store: false`, have no web-search
+  tool, and are instructed to call the cache historical—not live or forecast—data.
 
 ### Important backend routes
 
@@ -211,6 +323,7 @@ Browser user
 | `GET /api/v1/model-column` | Model profile at a selected location. Nearest cached time is now correctly used. |
 | `GET /api/v1/collocation/{id}` | RMSE, bias, distance, offset, depth bands, interpretation. |
 | `GET /api/v1/provenance` | Real and planned layer/source registry. |
+| `POST /api/v1/briefing/{id}` | Optional grounded explanation for the selected temperature/salinity evidence. Requires the server-side OpenAI key. |
 
 ## 9. Repository map
 
@@ -277,7 +390,9 @@ pytest
 python -m compileall app
 ```
 
-The current verified baseline is 214 frontend tests and 101 backend tests. Some frontend integration tests intentionally skip when no live backend is running.
+The current verified baseline is **240 frontend tests** and **101 backend
+tests**. Some frontend integration tests intentionally skip when no live
+backend is running.
 
 ## 11. Suggested 90-second demo flow
 
@@ -288,6 +403,17 @@ The current verified baseline is 214 frontend tests and 101 backend tests. Some 
 5. **Show Comparison:** explain RMSE, bias direction, distance, and depth bands in plain language.
 6. **Show Provenance:** show the Argo and HYCOM URLs, processing steps, historical dates, and QC caveats.
 7. **Close with impact:** “This shortens the path from a complex model field to an evidence-backed operational judgment.”
+
+### Suggested judge questions and concise answers
+
+| Likely question | Good answer |
+|---|---|
+| “Why not just show a map?” | “A map hides the vertical ocean. We show depth, time, and the measured profile needed to judge a model result.” |
+| “Why is a model needed if you have Argo?” | “Argo is precise but sparse. The model covers the whole region; Argo lets us validate it where a float exists.” |
+| “Can you analyse a location with no float?” | “Yes. Click anywhere for a model-only column. We deliberately reserve RMSE and bias for locations with real observational evidence.” |
+| “Are these numbers live?” | “No. This prototype is an accurately labelled historical cache. Near-real-time ingestion is a finals extension.” |
+| “What does the AI do?” | “It explains supplied model–observation facts in plain language. It has no web access, does not calculate science, and cannot turn historical data into a forecast.” |
+| “Why should INCOIS use this?” | “It reduces tool-switching and makes model confidence, data quality, and provenance visible in one browser workspace.” |
 
 ### Demo language to use
 
@@ -333,7 +459,7 @@ The internal-round core is intentionally complete before adding more sources. Fo
 
 - Full volumetric rendering and robust isosurface extraction.
 - User-editable colour scale, min/max range, log/linear mode, and saved views.
-- Briefing mode that converts selected evidence into a concise operational summary.
+- Extend the existing Briefing Mode with tested retrieval, role-aware workflows, multilingual output, and operational review/approval—not autonomous advice.
 - Outreach mode designed for students and public demonstrations.
 - Machine-learning-derived layers only after a real trained model, uncertainty story, and validation are available.
 
@@ -353,6 +479,8 @@ The internal-round core is intentionally complete before adding more sources. Fo
 - The prototype is historical and offline-capable, not live.
 - It has Argo observations only; no Glider, CTD, BGC, satellite, advisory, or ML product is loaded.
 - Current speed is visualised from HYCOM, but it has no matching Argo current observation in this cache, so profile/collocation comparison is intentionally unavailable for it.
+- Model-only click analysis is available across the cached model region, but it currently shows a vertical column rather than a complete point time-series or nearest-observation recommendation; those are sensible finals additions.
+- Briefing Mode depends on a configured backend OpenAI key. Without one it truthfully reports that the optional explanation service is unavailable; scientific model/profile/comparison features still work.
 - The layout has been browser-checked at the supported 1440×900 and 1600×1000 desktop targets. It is not claimed to be mobile-ready.
 - Keyboard-only focus order has not had a dedicated full audit.
 - The project uses modern browser CSS such as `:has()` for one responsive control-rail fix; use a current browser for the demo.
@@ -365,4 +493,3 @@ The internal-round core is intentionally complete before adding more sources. Fo
 - [API reference](api.md): endpoint contract.
 - [Data contract](data-contract.md): frontend/backend mapping and numerical compatibility.
 - [Architecture](architecture.md): component and deployment architecture.
-

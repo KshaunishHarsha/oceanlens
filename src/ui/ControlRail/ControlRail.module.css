@@ -113,8 +113,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 27px;
-  padding: 0 7px;
+  min-height: 30px;
+  padding: 4px 7px;
   border-radius: var(--radius);
   background: transparent;
   border: none;
@@ -165,12 +165,11 @@
 }
 
 .layerLabel {
-  flex: 1;
   font-size: var(--fs-body);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--text-primary);
+  line-height: 1.2;
 }
+.layerText { flex: 1; min-width: 0; display: flex; }
 
 .layerMeta {
   font-family: var(--font-mono);
@@ -179,6 +178,9 @@
   letter-spacing: 0.05em;
   flex: none;
 }
+.layerMeta[data-status='VISIBLE'] { color: var(--cyan-bright); }
+.layerMeta[data-status='HIDDEN'] { color: var(--warn); }
+.layerMeta[data-status='NOT DRAWN'], .layerMeta[data-status='UNAVAILABLE'] { color: var(--text-disabled); }
 
 /* -- toggle switches -- */
 

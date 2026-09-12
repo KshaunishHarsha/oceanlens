@@ -34,12 +34,18 @@
   font-size: var(--fs-caption);
   color: var(--text-muted);
 }
+.pointHint { margin: -3px 0 0; font-size: var(--fs-caption); color: var(--text-muted); }
+.selectedPoint { display: flex; flex-wrap: wrap; gap: 5px; align-items: baseline; padding: 8px 10px; border-left: 3px solid var(--magenta, #ff3dc8); background: var(--surface-raised); color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--fs-body); }
+.selectedPointLabel { color: var(--text-label); font-size: var(--fs-caption); letter-spacing: var(--ls-caption); }
+.selectedPoint strong { color: var(--text-primary); }
 
 .svg {
   width: 100%;
   height: auto;
   display: block;
 }
+.pointTarget { cursor: pointer; }
+.pointTarget:hover circle:not(:first-child) { stroke: var(--magenta, #ff3dc8); stroke-width: 1.2px; }
 .axisTick {
   font-family: var(--font-mono);
   font-size: var(--fs-micro);

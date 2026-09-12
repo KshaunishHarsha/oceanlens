@@ -35,6 +35,7 @@ export interface ThreeSceneCanvasProps {
   readonly depthM: number;
   readonly exaggeration: number;
   readonly opacity: number;
+  readonly showModel: boolean;
   /** Already filtered (platform type / DAC / good-QC / collocated-only) by
    * the caller — see src/state/filterObservations.ts, shared with
    * EvidencePanel so the panel's list and the clickable markers always
@@ -167,6 +168,7 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const orbitRef = useRef<SimpleOrbitCamera | null>(null);
   const planeRef = useRef<THREE.Mesh | null>(null);
+  const activeOutlineRef = useRef<THREE.LineSegments | null>(null);
   const markerGroupRef = useRef<THREE.Group | null>(null);
   const coastlineGroupRef = useRef<THREE.Group | null>(null);
   const boxGroupRef = useRef<THREE.Group | null>(null);
@@ -411,6 +413,8 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
           m.dispose();
         }
       }
+      activeOutlineRef.current?.geometry.dispose();
+      (activeOutlineRef.current?.material as THREE.Material | undefined)?.dispose();
       disposeMarkers(markerEntriesRef.current);
       circleTextureRef.current?.dispose();
       ringTextureRef.current?.dispose();
@@ -424,6 +428,7 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
       cameraRef.current = null;
       orbitRef.current = null;
       planeRef.current = null;
+      activeOutlineRef.current = null;
       markerGroupRef.current = null;
       markerEntriesRef.current = [];
       circleTextureRef.current = null;
@@ -443,7 +448,7 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
-    const { slice, palette, domainRange, depthM, exaggeration, opacity } = propsRef.current;
+    const { slice, palette, domainRange, depthM, exaggeration, opacity, showModel } = propsRef.current;
 
     const texData = buildSliceTexture(slice, palette, domainRange);
     const texture = new THREE.DataTexture(
@@ -476,7 +481,8 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
     const material = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
-      opacity,
+      // The active analytical slice must dominate the faint depth context.
+      opacity: showModel ? Math.max(opacity, 0.96) : 0,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
@@ -492,8 +498,22 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
       oldMat.map?.dispose();
       oldMat.dispose();
     }
+    if (activeOutlineRef.current) {
+      scene.remove(activeOutlineRef.current);
+      activeOutlineRef.current.geometry.dispose();
+      (activeOutlineRef.current.material as THREE.Material).dispose();
+    }
     scene.add(mesh);
     planeRef.current = mesh;
+    const outline = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geometry),
+      new THREE.LineBasicMaterial({ color: 0x7ff6ff, transparent: true, opacity: 0.95, depthTest: false }),
+    );
+    outline.position.copy(mesh.position);
+    outline.visible = showModel;
+    outline.renderOrder = 20;
+    scene.add(outline);
+    activeOutlineRef.current = outline;
   }, [
     props.slice,
     props.palette,
@@ -501,6 +521,7 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
     props.depthM,
     props.exaggeration,
     props.opacity,
+    props.showModel,
     renderGeneration,
   ]);
 
@@ -635,10 +656,10 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
       });
 
     const southGeom = new THREE.BufferGeometry().setFromPoints([swT, seT, seB, swT, seB, swB]);
-    group.add(new THREE.Mesh(southGeom, wallMaterial(0x1b3a54, 0.22)));
+    group.add(new THREE.Mesh(southGeom, wallMaterial(0x123650, 0.94)));
 
     const eastGeom = new THREE.BufferGeometry().setFromPoints([seT, neT, neB, seT, neB, seB]);
-    group.add(new THREE.Mesh(eastGeom, wallMaterial(0x16324a, 0.16)));
+    group.add(new THREE.Mesh(eastGeom, wallMaterial(0x102f48, 0.94)));
 
     const rimMaterial = new THREE.LineBasicMaterial({
       color: 0x789ebe,

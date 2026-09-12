@@ -36,6 +36,7 @@ export function SceneStage() {
   const filters = useAnalysisStore((s) => s.filters);
   const selectedObservationId = useAnalysisStore((s) => s.selectedObservationId);
   const selectedModelPoint = useAnalysisStore((s) => s.selectedModelPoint);
+  const activeLayers = useAnalysisStore((s) => s.layers);
   const hoveredObservationId = useAnalysisStore((s) => s.hoveredObservationId);
   const selectObservation = useAnalysisStore((s) => s.selectObservation);
   const hoverObservation = useAnalysisStore((s) => s.hoverObservation);
@@ -49,6 +50,13 @@ export function SceneStage() {
     : undefined;
 
   const meta = VARIABLES[variable];
+  const activeModelLayer = variable === 'temperature'
+    ? 'model.temperature'
+    : variable === 'salinity'
+      ? 'model.salinity'
+      : 'model.currents';
+  const showModel = activeLayers[activeModelLayer] !== false;
+  const showArgo = activeLayers['obs.argo'] !== false;
   const variableReady = status === 'ready' && Boolean(availability[variable]) && Boolean(timestamp);
 
   // Hooks must run unconditionally; the hook itself no-ops (status: 'idle')
@@ -105,7 +113,8 @@ export function SceneStage() {
               depthM={depthM}
               exaggeration={exaggeration}
               opacity={opacity}
-              observations={filteredObservations}
+              observations={showArgo ? filteredObservations : []}
+              showModel={showModel}
               selectedObservationId={selectedObservationId}
               hoveredObservationId={hoveredObservationId}
               onSelectObservation={selectObservation}
@@ -138,6 +147,7 @@ export function SceneStage() {
                 : ''}{' '}
               · 0–1000 m · {meta.name.toLowerCase()}
             </div>
+            <div className={styles.volumeNote}>ACTIVE DEPTH SLICE · solid context walls</div>
           </div>
 
           <div className={styles.stateBadges}>

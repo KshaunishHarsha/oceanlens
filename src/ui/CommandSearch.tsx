@@ -32,6 +32,7 @@ export function CommandSearch() {
   const [dropdownRect, setDropdownRect] = useState<DropdownRect | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLUListElement>(null);
 
   const ready = status === 'ready';
   const results = ready ? searchObservations(observations, query) : [];
@@ -76,7 +77,16 @@ export function CommandSearch() {
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (e: PointerEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      // Results are portalled to document.body to avoid CommandBar overflow
+      // clipping, so they are not descendants of wrapRef. Treat both pieces
+      // of the composite control as "inside" or a result's pointer-down
+      // unmounts it before its click handler can select the observation.
+      if (
+        wrapRef.current &&
+        !wrapRef.current.contains(target) &&
+        !dropdownRef.current?.contains(target)
+      ) setOpen(false);
     };
     window.addEventListener('pointerdown', onPointerDown);
     return () => window.removeEventListener('pointerdown', onPointerDown);
@@ -154,6 +164,7 @@ export function CommandSearch() {
         dropdownRect &&
         createPortal(
           <ul
+            ref={dropdownRef}
             id="command-search-results"
             role="listbox"
             className={styles.results}

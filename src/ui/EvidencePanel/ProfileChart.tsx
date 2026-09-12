@@ -8,7 +8,7 @@
  * a missing model column degrades to "observed only", never an invented
  * curve. */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { QUALITY } from '@/domain/quality';
 import { formatValue, variableMeta } from '@/domain/variables';
 import { useAnalysisStore } from '@/state/analysisStore';
@@ -56,11 +56,23 @@ function QcMarker({ x, y, qc }: { x: number; y: number; qc: ObservedPoint['qc'] 
   );
 }
 
+type SelectedChartPoint = {
+  readonly source: 'Observed Argo' | 'Modelled HYCOM';
+  readonly depthM: number;
+  readonly value: number;
+  readonly qc?: ObservedPoint['qc'];
+};
+
 export function ProfileChart({ observationId }: { observationId: string }) {
   const variable = useAnalysisStore((s) => s.variable);
   const availableTimes = useAnalysisStore((s) => s.availableTimes);
   const metadata = useDataStore((s) => s.metadata);
   const [reloadToken, setReloadToken] = useState(0);
+  const [selectedPoint, setSelectedPoint] = useState<SelectedChartPoint | null>(null);
+
+  // A selected point belongs to one profile/variable only. Never carry a
+  // temperature selection into salinity, or one float's reading into another.
+  useEffect(() => setSelectedPoint(null), [observationId, variable]);
 
   const { status, error, observation, modelColumn, modelTimestamp } = useProfileComparison(
     observationId,
@@ -213,6 +225,17 @@ export function ProfileChart({ observationId }: { observationId: string }) {
           .join(' · ')}
       </p>
 
+      <p className={styles.pointHint}>Click any plotted depth point to inspect its exact value.</p>
+
+      {selectedPoint && (
+        <div className={styles.selectedPoint} role="status">
+          <span className={styles.selectedPointLabel}>{selectedPoint.source.toUpperCase()}</span>
+          <strong>{formatValue(variable, selectedPoint.value)}</strong>
+          <span>at {selectedPoint.depthM.toFixed(1)} m</span>
+          {selectedPoint.qc && <span>· QC: {QUALITY[selectedPoint.qc].label}</span>}
+        </div>
+      )}
+
       <svg
         className={styles.svg}
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -281,14 +304,33 @@ export function ProfileChart({ observationId }: { observationId: string }) {
         {modeledSorted.length > 0 && (
           <path d={modeledPath} fill="none" stroke="var(--cyan-deep)" strokeWidth={2} strokeDasharray="5 4" />
         )}
+        {/* Model points are visible and selectable at every real model depth,
+            not merely implied by the dashed joining line. */}
+        {modeledSorted.map((p) => {
+          const selected = selectedPoint?.source === 'Modelled HYCOM' && selectedPoint.depthM === p.depthM;
+          return (
+            <g key={`model-${p.depthM}`} className={styles.pointTarget} onClick={() => setSelectedPoint({ source: 'Modelled HYCOM', depthM: p.depthM, value: p.value })}>
+              <circle cx={xOf(p.value)} cy={yOf(p.depthM)} r={7} fill="transparent" />
+              <circle cx={xOf(p.value)} cy={yOf(p.depthM)} r={2.5} fill="var(--cyan-deep)" />
+              {selected && <circle cx={xOf(p.value)} cy={yOf(p.depthM)} r={6} fill="none" stroke="var(--magenta, #ff3dc8)" strokeWidth={1.8} />}
+            </g>
+          );
+        })}
 
         {/* observed line + per-level QC markers */}
         {observedSorted.length > 0 && (
           <path d={observedPath} fill="none" stroke="var(--cyan-bright)" strokeWidth={1.6} />
         )}
-        {observedSorted.map((p) => (
-          <QcMarker key={p.depthM} x={xOf(p.value)} y={yOf(p.depthM)} qc={p.qc} />
-        ))}
+        {observedSorted.map((p) => {
+          const selected = selectedPoint?.source === 'Observed Argo' && selectedPoint.depthM === p.depthM;
+          return (
+            <g key={`observed-${p.depthM}`} className={styles.pointTarget} onClick={() => setSelectedPoint({ source: 'Observed Argo', depthM: p.depthM, value: p.value, qc: p.qc })}>
+              <circle cx={xOf(p.value)} cy={yOf(p.depthM)} r={7} fill="transparent" />
+              <QcMarker x={xOf(p.value)} y={yOf(p.depthM)} qc={p.qc} />
+              {selected && <circle cx={xOf(p.value)} cy={yOf(p.depthM)} r={6} fill="none" stroke="var(--magenta, #ff3dc8)" strokeWidth={1.8} />}
+            </g>
+          );
+        })}
       </svg>
 
       {modeledSorted.length === 0 && (

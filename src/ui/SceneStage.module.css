@@ -27,6 +27,7 @@
   font-size: var(--fs-small);
   color: var(--text-label);
 }
+.volumeNote { margin-top: 4px; font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--cyan-bright); }
 
 .stateBadges {
   position: absolute;
