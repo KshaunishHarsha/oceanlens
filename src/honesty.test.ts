@@ -11,9 +11,10 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { FORBIDDEN_CLAIMS } from '@/domain/provenance';
 
-const SRC = new URL('.', import.meta.url).pathname;
+const SRC = fileURLToPath(new URL('.', import.meta.url));
 
 /** Files allowed to contain the forbidden strings, because they define them. */
 const ALLOWLIST = ['domain/provenance.ts', 'honesty.test.ts'];

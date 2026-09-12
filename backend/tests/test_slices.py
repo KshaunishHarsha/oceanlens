@@ -134,3 +134,17 @@ def test_missing_values_are_null_not_fabricated(client):
     values = r.json()["values"]
     flat = [v for row in values for v in row]
     assert None in flat  # land cells exist in this bounding box
+
+
+def test_invalid_timestamp_returns_422(client):
+    r1 = client.get(
+        "/api/v1/slice?variable=temperature&timestamp=not-a-timestamp&depth_m=0"
+    )
+    assert r1.status_code == 422
+    assert "invalid date" in r1.json()["detail"].lower()
+
+    r2 = client.get(
+        "/api/v1/model-column?variable=temperature&timestamp=garbage-date&latitude=13.2&longitude=86.7"
+    )
+    assert r2.status_code == 422
+    assert "invalid date" in r2.json()["detail"].lower()

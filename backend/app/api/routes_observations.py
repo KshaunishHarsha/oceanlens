@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from app.data.cache_reader import get_cache
+from app.errors import InvalidDateError
 from app.models.observations import ObservationsListResponse, ObservationSummary
 from app.models.queries import PlatformType, QualityFlag
 from app.services.observation_service import get_observation_summary, list_observations
@@ -23,19 +24,22 @@ def observations(
     max_lon: float | None = Query(None),
     collocated_only: bool = Query(False),
 ) -> ObservationsListResponse:
-    return list_observations(
-        get_cache(),
-        platform_types=[p.value for p in platform_type] if platform_type else None,
-        data_centres=dac,
-        qc=qc.value if qc else None,
-        from_time=from_time,
-        to_time=to_time,
-        min_lat=min_lat,
-        max_lat=max_lat,
-        min_lon=min_lon,
-        max_lon=max_lon,
-        collocated_only=collocated_only,
-    )
+    try:
+        return list_observations(
+            get_cache(),
+            platform_types=[p.value for p in platform_type] if platform_type else None,
+            data_centres=dac,
+            qc=qc.value if qc else None,
+            from_time=from_time,
+            to_time=to_time,
+            min_lat=min_lat,
+            max_lat=max_lat,
+            min_lon=min_lon,
+            max_lon=max_lon,
+            collocated_only=collocated_only,
+        )
+    except InvalidDateError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 @router.get("/observations/{observation_id}", response_model=ObservationSummary)

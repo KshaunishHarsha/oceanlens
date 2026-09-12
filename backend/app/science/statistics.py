@@ -76,8 +76,16 @@ def calculate_mean_bias(observed: list[float | None], modeled: list[float | None
 
 def calculate_time_offset_hours(observation_iso: str, model_iso: str) -> float:
     """Signed difference in hours: observation time minus model time."""
-    obs = datetime.fromisoformat(observation_iso.replace("Z", "+00:00"))
-    mod = datetime.fromisoformat(model_iso.replace("Z", "+00:00"))
+    from app.errors import InvalidDateError
+
+    try:
+        obs = datetime.fromisoformat(observation_iso.replace("Z", "+00:00"))
+        mod = datetime.fromisoformat(model_iso.replace("Z", "+00:00"))
+    except (ValueError, TypeError, AttributeError) as e:
+        raise InvalidDateError(
+            f"invalid date format: '{observation_iso}' / '{model_iso}'. "
+            "Expected ISO 8601 strings (e.g. 2023-09-25T00:00:00Z)"
+        ) from e
     return (obs - mod).total_seconds() / 3600.0
 
 

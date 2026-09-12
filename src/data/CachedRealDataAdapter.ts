@@ -481,6 +481,10 @@ export class CachedRealDataAdapter implements OceanDataAdapter {
     const slot =
       column.byTimestamp.find((b) => b.timestamp === modelTimestamp) ?? column.byTimestamp[0]!;
 
+    if (q.variable !== 'temperature' && q.variable !== 'salinity') {
+      return null;
+    }
+
     const obsValues = q.variable === 'salinity' ? cachedProfile.salinity : cachedProfile.temperature;
     const obsQc = q.variable === 'salinity' ? cachedProfile.salinityQc : cachedProfile.temperatureQc;
     const modelColDepths = column.depthsM;

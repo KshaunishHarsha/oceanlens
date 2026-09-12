@@ -128,6 +128,13 @@ def compute_collocation(
     meta = _VARIABLE_META[variable]
     by_ts = {slot["timestamp"]: slot for slot in column["byTimestamp"]}
     all_ts = list(by_ts.keys())
+    if requested_timestamp is not None and requested_timestamp not in by_ts:
+        # Validate inexact timestamps so garbage (?timestamp=garbage) raises
+        # InvalidDateError -> HTTP 422 instead of silently snapping.
+        # nearest_timestamp_index parses the target and raises on garbage;
+        # we discard its result here — the real snap happens below against
+        # the observation time, matching long-standing behaviour.
+        nearest_timestamp_index(all_ts, requested_timestamp)
     model_timestamp = (
         requested_timestamp
         if requested_timestamp in by_ts
@@ -135,11 +142,16 @@ def compute_collocation(
     )
     slot = by_ts[model_timestamp]
 
-    # variable is "temperature" or "salinity" here — guaranteed by the
-    # _SUPPORTED_VARIABLES check above, so this is no longer a silent
-    # fallback for anything else (see _SUPPORTED_VARIABLES's comment).
-    obs_values = profile["salinity"] if variable == "salinity" else profile["temperature"]
-    obs_qc = profile["salinityQc"] if variable == "salinity" else profile["temperatureQc"]
+    # Variable must be explicitly temperature or salinity — never fall back
+    # silently to temperature for currents or chlorophyll.
+    if variable == "temperature":
+        obs_values = profile["temperature"]
+        obs_qc = profile["temperatureQc"]
+    elif variable == "salinity":
+        obs_values = profile["salinity"]
+        obs_qc = profile["salinityQc"]
+    else:
+        raise UnsupportedCollocationVariableError(variable)
 
     axis: list[float] = []
     obs_on_axis: list[float] = []
