@@ -115,28 +115,6 @@
   color: var(--text-primary);
 }
 
-.search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 9px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-panel);
-  color: var(--text-muted);
-  flex: none;
-  opacity: 0.6;
-}
-.kbd {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  border: 1px solid var(--border-input);
-  border-radius: var(--radius);
-  padding: 1px 4px;
-  color: var(--text-muted);
-}
-
 .briefing {
   height: 30px;
   display: flex;

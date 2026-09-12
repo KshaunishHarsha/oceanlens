@@ -1,0 +1,16 @@
+.wrap { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.hero { padding: 14px; border: 1px solid var(--cyan-edge); border-radius: var(--radius-md); background: linear-gradient(135deg, color-mix(in srgb, var(--surface-raised) 86%, var(--cyan-edge)), var(--surface-strip)); }
+.eyebrow, .label { display: block; font-size: var(--fs-caption); letter-spacing: var(--ls-caption); color: var(--text-label); }
+.title { margin: 5px 0; font-size: 18px; color: var(--text-primary); }
+.intro { margin: 0; color: var(--text-secondary); font-size: var(--fs-body); line-height: 1.5; }
+.questions { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--border-default); border-radius: 999px; background: var(--surface-raised); color: var(--text-secondary); padding: 6px 9px; font-size: var(--fs-caption); cursor: pointer; }
+.chip:hover:not(:disabled) { border-color: var(--cyan-edge); color: var(--text-primary); }
+.form { display: flex; flex-direction: column; gap: 6px; }
+.inputRow { display: flex; gap: 7px; }
+.inputRow input { min-width: 0; flex: 1; border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--surface-strip); color: var(--text-primary); padding: 8px; font: inherit; }
+.inputRow button { border: 0; border-radius: var(--radius-sm); background: var(--cyan-edge); color: var(--surface-base); padding: 0 12px; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+.answer { border-left: 3px solid var(--cyan-edge); background: var(--surface-raised); padding: 12px; border-radius: var(--radius-sm); }
+.answerMeta { display: flex; flex-direction: column; gap: 2px; color: var(--text-muted); font-size: var(--fs-micro); margin-bottom: 9px; }
+.answerText { color: var(--text-secondary); white-space: pre-wrap; line-height: 1.55; font-size: var(--fs-body); }

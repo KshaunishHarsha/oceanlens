@@ -1,0 +1,134 @@
+.wrap {
+  position: relative;
+  flex: none;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 9px;
+  width: 190px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+}
+.field:focus-within {
+  border-color: var(--cyan-edge);
+}
+.field[data-disabled='true'] {
+  opacity: 0.6;
+}
+
+.icon {
+  color: var(--text-muted);
+  flex: none;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  outline: none;
+}
+.input::placeholder {
+  color: var(--text-muted);
+}
+.input:disabled {
+  cursor: not-allowed;
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius);
+  padding: 1px 4px;
+  color: var(--text-muted);
+  flex: none;
+}
+
+/* Rendered via a React portal to document.body (see CommandSearch.tsx's
+   comment) — CommandBar's own .bar computes overflow-y: auto as a side
+   effect of its overflow-x: auto (confirmed live via getComputedStyle),
+   which silently clipped this dropdown when it was a normal DOM child.
+   Position is therefore `fixed` and set inline from the real input's
+   getBoundingClientRect(), not from this stylesheet. */
+.results {
+  position: fixed;
+  max-height: 340px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: rgba(11, 22, 35, 0.98);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-float);
+  z-index: 200;
+}
+
+.empty {
+  padding: 10px 9px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+.result:hover,
+.result[data-active='true'] {
+  background: var(--surface-hover);
+}
+.resultName {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+  flex: none;
+  width: 112px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resultPos {
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resultQc {
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  flex: none;
+}
+
+/* Same 300px-control-rail breakpoint the rest of the shell narrows at
+   (tokens.css) — the command bar already needed room reclaimed there
+   (CLAUDE.md's responsive-QA pass); a fixed 190px field would reopen that
+   overflow, so it shrinks here instead of forcing a horizontal scroll. */
+@media (max-width: 1599px) {
+  .field {
+    width: 116px;
+  }
+}

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent  # backend/
@@ -15,7 +16,9 @@ REPO_ROOT = BACKEND_ROOT.parent  # project root
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="OCEANLENS_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="OCEANLENS_", extra="ignore", env_file=REPO_ROOT / ".env", env_file_encoding="utf-8"
+    )
 
     # The single source of truth is the repo-root cache written by
     # scripts/prepare-real-data.mjs. Overridable for tests or an alternate
@@ -33,6 +36,13 @@ class Settings(BaseSettings):
     ]
 
     api_prefix: str = "/api/v1"
+
+    # Optional. Kept server-side only: never expose this value to the Vite
+    # client or return it from an API route.
+    openai_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("OCEANLENS_OPENAI_API_KEY", "OPENAI_API_KEY")
+    )
+    openai_model: str = "gpt-5"
 
 
 settings = Settings()

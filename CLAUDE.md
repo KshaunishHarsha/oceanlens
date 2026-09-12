@@ -17,7 +17,7 @@ Not a dashboard. A scientific operations console for a government audience.
 |---|---|
 | Current phase | **Phase 4A and Phase 5A complete, backend correctness hardening, a responsive/accessibility QA pass, and a scene visual pass (real coastline + depth-box frame) — all done as of 2026-09-12.** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. Both real backend bugs found-and-worked-around during 5A are now genuinely fixed. The narrow-viewport layout gap noted across all three 5A step reports is checked and fixed. The 3D scene now also shows a real vendored coastline (India/Sri Lanka/Bangladesh/Myanmar/Thailand/Indonesia) and a fixed depth-box frame the slice plane visibly moves inside — see "Scene visual pass" below. Internal-round plan (0→1→2→2.5→3→4A→5A→...) has no phase left before 4B/5B, explicitly deferred to finalist work — see below for the recommended next task. |
 | Proposed next order | 0 → 1 → 2 → **2.5** → 3 → **4A** → **5A** → 4B → 5B → 6 → 7. The internal round should prioritise a working 3D model/observation loop before advanced rendering or data expansion. |
-| Repo state | Backend: **101 pytest**, untouched since the hardening pass. `SceneStage` renders a real Three.js/WebGL scene with clickable real Argo markers, a real vendored coastline, and a fixed depth-box frame the slice plane visibly moves inside as depth changes; recovers correctly from a lost WebGL context; verified working at both the desktop (1600x1000) and 300px-control-rail (1440x900) breakpoints. `EvidencePanel`'s three tabs are all real and verified legible at both breakpoints: Profile, Comparison, Provenance. `/model-column` genuinely snaps to the nearest real timestamp; `/collocation` returns an honest `422` for `currentSpeed`/`chlorophyll`. **227 frontend tests green** (22 skipped without a live backend), tsc clean, build OK (bundle ~840 KB gzip ~226 KB, 80 modules). |
+| Repo state | Backend: **101 pytest**, untouched by every entry below (a `routes_briefing.py`/`briefing_service.py` + `EvidencePanel/BriefingPanel.tsx` feature was added to the tree by work outside this document's own sessions — present and passing, not further verified or described here since it wasn't this work's change). `SceneStage` renders a real Three.js/WebGL scene with clickable real Argo markers, a real vendored coastline, and a fixed depth-box frame the slice plane visibly moves inside as depth changes; recovers correctly from a lost WebGL context; verified working at both the desktop (1600x1000) and 300px-control-rail (1440x900) breakpoints. `EvidencePanel`'s three tabs are all real and verified legible at both breakpoints: Profile, Comparison, Provenance. `/model-column` genuinely snaps to the nearest real timestamp; `/collocation` returns an honest `422` for `currentSpeed`/`chlorophyll`. CommandBar's search is now real (find any loaded Argo observation by id/name/WMO). **238 frontend tests green** (22 skipped without a live backend), tsc clean, build OK (85 modules). |
 
 ## Internal-round pivot — authoritative next work
 
@@ -56,6 +56,71 @@ dates and provenance accurately.
   sensor-plugin system.
 - Advanced volume rendering, full colourbar editing/log scaling, production scaling and
   polished outreach mode.
+
+## Real Argo search (2026-09-12) — CommandBar's "planned extension" search is now real
+
+**User-requested: find a specific real Argo observation by id.** CommandBar's search field
+was a disabled placeholder (`title="Search — planned extension"`) since Phase 3; it now
+searches the already-loaded real observation list and selects a real match through the
+exact same `analysisStore.selectObservation()` path a scene marker click or EvidencePanel's
+picker already used, so all three selection paths behave identically.
+
+- **New**: `src/state/searchObservations.ts` (pure — case-insensitive substring match
+  against an observation's real `id`, `platformName`, and `identity.wmo`; empty query
+  returns nothing, no result cap surprises via `MAX_SEARCH_RESULTS`). `src/ui/CommandSearch.tsx`
+  + `.module.css` (replaces the old disabled `.search`/`.kbd` markup in `CommandBar.tsx`
+  entirely — those now-dead styles were removed, not left behind). Real ⌘K/Ctrl+K global
+  focus (matching the kbd hint the placeholder always showed), arrow-key navigation, Enter
+  to select, Escape/outside-click to dismiss, and an honest "No real observation matches…"
+  empty state — never a fabricated suggestion.
+- **Deliberately searches ALL loaded observations, not just the currently-filtered set**
+  (`src/state/filterObservations.ts`'s platform/DAC/QC filters): search is how a user finds
+  a *specific known* float regardless of what the active filters happen to be hiding from
+  the marker/picker view. Selecting a filtered-out result still works correctly —
+  `EvidencePanel`'s header/tabs read from the full `dataStore.observations` list, not the
+  filtered one — it just won't have a clickable marker in the scene until the filters
+  changed, which is honest, not a bug.
+- **Real bug found and fixed before shipping**: the dropdown was invisible on first
+  implementation. Confirmed live (`getComputedStyle(bar).overflowY === 'auto'`) that
+  `CommandBar`'s `.bar` — given `overflow-x: auto` in the earlier responsive-QA pass —
+  silently computes `overflow-y: auto` too, per the CSS overflow spec's non-"visible"-pairing
+  rule, clipping anything a bar child renders below itself. Fixed by rendering the results
+  list through a `createPortal` to `document.body`, positioned from the real input's
+  `getBoundingClientRect()` (recomputed on open and on window resize) — decouples the
+  dropdown from any ancestor's overflow/stacking context entirely, the standard correct
+  fix for this class of bug rather than fighting the overflow computation. The portal call
+  sits behind the same `open` state check that's `false` during SSR, so `document.body` is
+  never reached outside the browser — confirmed via the existing `renderToString` test
+  still passing.
+- **Narrow-width regression caught and fixed in the same pass**: the new 190px search field
+  reopened a few pixels of the exact `.bar` overflow the prior responsive-QA pass had
+  eliminated (`scrollWidth` 1391 vs `clientWidth` 1380 at 1440×900) — caught by re-running
+  that pass's own overflow check, not assumed clean. Fixed by shrinking the field to 116px
+  (was already narrowing to 130px) at the existing ≤1599px breakpoint; re-verified
+  `scrollWidth === clientWidth` after.
+- **Tests**: `searchObservations.test.ts` (8) — WMO/name/id matching, case-insensitivity, no
+  match on an observation with no real identity, empty-query and no-match honesty, the
+  result cap. `CommandSearch.test.tsx` (3) — SSR-safe render, the real disabled/placeholder
+  idle state, the accessible label. **238 total passing** (up from 227, +11 new), 22 skipped
+  without a live backend (unchanged — no new adapter call).
+- **Verified**: `tsc --noEmit` clean; `npx vitest run` 238/238; `npm run build` clean, 85
+  modules; backend `pytest` 101/101 unchanged; `npm run test:integration` 21/21 unchanged.
+- **Verified in an actual browser** (headless Chromium via Playwright): ⌘K focuses the
+  field from anywhere; typing a real WMO number (`5907083`) shows exactly that real
+  observation in the now-visible (portal-fixed) dropdown; Enter selects it and
+  `EvidencePanel` correctly shows its real Profile chart, and the scene's marker shows the
+  real cyan selection ring — the same result a marker click or picker row would produce;
+  an unmatched query shows the honest empty state, not silence or an error; re-checked at
+  1440×900 with zero `.bar` overflow.
+- **Gaps, stated plainly**:
+  - Result rows are not independently keyboard-focusable (arrow keys move a visual
+    `data-active` highlight inside the always-focused input, not real DOM focus per row) —
+    functionally equivalent for keyboard use (Enter still selects the highlighted row) but
+    a screen-reader user would rely on the `aria-selected`/`role="option"` wiring rather
+    than focus events; not independently tested with a screen reader.
+  - No fuzzy matching or typo tolerance — a plain substring match only, matching this
+    project's "no invented ranking" stance, but a user who mistypes a WMO number gets the
+    honest empty state rather than a "did you mean" suggestion.
 
 ## Scene visual pass (2026-09-12) — real coastline + a depth-box frame, replicating the Claude Design reference's "cool" look in Three.js
 

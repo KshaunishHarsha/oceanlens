@@ -83,4 +83,22 @@ export async function apiGet<T>(path: string, params?: QueryParams): Promise<T> 
   return body as T;
 }
 
+export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const url = buildUrl(path);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (cause) {
+    throw new ApiUnavailableError(url, cause);
+  }
+  let result: unknown = null;
+  try { result = await res.json(); } catch { /* status remains useful */ }
+  if (!res.ok) throw new ApiResponseError(url, res.status, result);
+  return result as T;
+}
+
 export { baseUrl as apiBaseUrl };

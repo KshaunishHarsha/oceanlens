@@ -85,3 +85,18 @@ class ApiError(BaseModel):
     error: str
     detail: str
     status_code: int
+
+
+class BriefingRequest(BaseModel):
+    """A deliberately narrow question about the currently selected evidence."""
+
+    variable: str = "temperature"
+    question: str | None = None
+
+
+class BriefingResponse(BaseModel):
+    observation_id: str
+    variable: str
+    briefing: str
+    generated_by: str
+    historical_window_label: str

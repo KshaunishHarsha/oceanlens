@@ -6,6 +6,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/ui/states/StatusStates';
 import { CollocationPanel } from './CollocationPanel';
 import { ProfileChart } from './ProfileChart';
 import { ProvenancePanel } from './ProvenancePanel';
+import { BriefingPanel } from './BriefingPanel';
 import styles from './EvidencePanel.module.css';
 
 function ObservationPicker() {
@@ -142,15 +143,7 @@ export function EvidencePanel() {
   if (mode === 'briefing') {
     return (
       <aside className={styles.panel} aria-label="Evidence">
-        <div className={styles.header}>
-          <span className={styles.caption}>BRIEFING MODE — SHELL</span>
-        </div>
-        <div className={styles.provList}>
-          <p className={styles.pickerHint}>
-            A generated situation/evidence/confidence/relevance briefing renders here in a
-            later phase, built from the selected observation&apos;s real collocation result.
-          </p>
-        </div>
+        <BriefingPanel observationId={selectedId} />
       </aside>
     );
   }

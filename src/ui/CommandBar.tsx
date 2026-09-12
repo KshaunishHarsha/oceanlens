@@ -1,5 +1,6 @@
 import { useAnalysisStore } from '@/state/analysisStore';
 import { useDataStore } from '@/state/dataStore';
+import { CommandSearch } from './CommandSearch';
 import styles from './CommandBar.module.css';
 
 export function CommandBar() {
@@ -50,13 +51,7 @@ export function CommandBar() {
         </div>
       </div>
 
-      <div className={styles.search} title="Search — planned extension" aria-disabled="true">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#5E7488" strokeWidth="1.4">
-          <circle cx="7" cy="7" r="4.6" />
-          <path d="M10.5 10.5 14 14" />
-        </svg>
-        <kbd className={styles.kbd}>⌘K</kbd>
-      </div>
+      <CommandSearch />
 
       <button
         type="button"

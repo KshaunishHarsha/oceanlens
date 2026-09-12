@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
     routes_collocation,
+    routes_briefing,
     routes_health,
     routes_metadata,
     routes_observations,
@@ -58,7 +59,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -68,4 +69,5 @@ app.include_router(routes_observations.router)
 app.include_router(routes_slices.router)
 app.include_router(routes_profiles.router)
 app.include_router(routes_collocation.router)
+app.include_router(routes_briefing.router)
 app.include_router(routes_provenance.router)
