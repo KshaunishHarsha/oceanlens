@@ -7,6 +7,7 @@ import { CollocationPanel } from './CollocationPanel';
 import { ProfileChart } from './ProfileChart';
 import { ProvenancePanel } from './ProvenancePanel';
 import { BriefingPanel } from './BriefingPanel';
+import { ModelPointPanel } from './ModelPointPanel';
 import styles from './EvidencePanel.module.css';
 
 function ObservationPicker() {
@@ -124,6 +125,7 @@ export function EvidencePanel() {
   const evidenceTab = useAnalysisStore((s) => s.evidenceTab);
   const setEvidenceTab = useAnalysisStore((s) => s.setEvidenceTab);
   const selectedId = useAnalysisStore((s) => s.selectedObservationId);
+  const selectedModelPoint = useAnalysisStore((s) => s.selectedModelPoint);
 
   if (status === 'loading' || status === 'idle') {
     return (
@@ -165,9 +167,9 @@ export function EvidencePanel() {
 
   return (
     <aside className={styles.panel} aria-label="Evidence">
-      {selectedId ? <ObservationHeader id={selectedId} /> : <ObservationPicker />}
+      {selectedModelPoint ? <ModelPointPanel point={selectedModelPoint} /> : selectedId ? <ObservationHeader id={selectedId} /> : <ObservationPicker />}
 
-      {selectedId && (
+      {selectedId && !selectedModelPoint && (
         <>
           <div className={styles.tabs}>
             {(['profile', 'comparison', 'provenance'] as const).map((t) => (

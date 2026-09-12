@@ -5,6 +5,8 @@ import {
   computePlaneWorldSize,
   depthToWorldY,
   projectGeoToWorld,
+  projectWorldToGeo,
+  sampleSliceNearest,
 } from './sliceTexture';
 import { sampleRamp } from './palettes';
 
@@ -72,6 +74,18 @@ describe('buildSliceTexture', () => {
   it('does not divide by zero when the domain range is degenerate', () => {
     const slice = makeSlice({ values: new Float32Array([5, 5, 5, 0]) });
     expect(() => buildSliceTexture(slice, 'thermal', [5, 5])).not.toThrow();
+  });
+});
+
+describe('model-point probe mapping', () => {
+  const BOUNDS = { minLat: 8, maxLat: 20.5, minLon: 81, maxLon: 93 };
+  it('round-trips a geographic point through the world plane', () => {
+    const geo = { latitude: 13.2, longitude: 86.7 };
+    const world = projectGeoToWorld(geo.latitude, geo.longitude, BOUNDS);
+    expect(projectWorldToGeo(world.x, world.z, BOUNDS)).toEqual(expect.objectContaining(geo));
+  });
+  it('returns null for a real land/missing cell rather than a fabricated value', () => {
+    expect(sampleSliceNearest(makeSlice(), { latitude: 20.5, longitude: 93 })).toBeNull();
   });
 });
 

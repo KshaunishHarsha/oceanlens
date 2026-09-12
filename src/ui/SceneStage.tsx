@@ -35,9 +35,11 @@ export function SceneStage() {
   const opacity = useAnalysisStore((s) => s.opacity);
   const filters = useAnalysisStore((s) => s.filters);
   const selectedObservationId = useAnalysisStore((s) => s.selectedObservationId);
+  const selectedModelPoint = useAnalysisStore((s) => s.selectedModelPoint);
   const hoveredObservationId = useAnalysisStore((s) => s.hoveredObservationId);
   const selectObservation = useAnalysisStore((s) => s.selectObservation);
   const hoverObservation = useAnalysisStore((s) => s.hoverObservation);
+  const selectModelPoint = useAnalysisStore((s) => s.selectModelPoint);
 
   // Shared with EvidencePanel's picker (src/state/filterObservations.ts) so
   // a marker clickable here is always the same set shown there.
@@ -108,6 +110,8 @@ export function SceneStage() {
               hoveredObservationId={hoveredObservationId}
               onSelectObservation={selectObservation}
               onHoverObservation={hoverObservation}
+              onSelectModelPoint={selectModelPoint}
+              selectedModelPoint={selectedModelPoint}
               coastline={coastlineQuery.data}
             />
           ) : null}

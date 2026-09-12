@@ -17,6 +17,8 @@ import {
   computePlaneWorldSize,
   depthToWorldY,
   projectGeoToWorld,
+  projectWorldToGeo,
+  sampleSliceNearest,
 } from './sliceTexture';
 import {
   computeMarkerAppearance,
@@ -42,6 +44,8 @@ export interface ThreeSceneCanvasProps {
   readonly hoveredObservationId: string | null;
   readonly onSelectObservation: (id: string) => void;
   readonly onHoverObservation: (id: string | null) => void;
+  readonly onSelectModelPoint: (point: { latitude: number; longitude: number }) => void;
+  readonly selectedModelPoint: { latitude: number; longitude: number } | null;
   /** Real vendored coastline reference (scripts/prepare-coastline.mjs) —
    * null while it's still loading or failed to load. A missing coastline
    * degrades to "no coastline drawn", never a fabricated placeholder
@@ -152,6 +156,8 @@ interface MarkerEntry {
   readonly stem: THREE.Line;
 }
 
+interface ProbeInfo { readonly latitude: number; readonly longitude: number; readonly value: number | null; }
+
 export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -164,6 +170,7 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
   const markerGroupRef = useRef<THREE.Group | null>(null);
   const coastlineGroupRef = useRef<THREE.Group | null>(null);
   const boxGroupRef = useRef<THREE.Group | null>(null);
+  const selectedPointGroupRef = useRef<THREE.Group | null>(null);
   const markerEntriesRef = useRef<MarkerEntry[]>([]);
   const circleTextureRef = useRef<THREE.CanvasTexture | null>(null);
   const ringTextureRef = useRef<THREE.CanvasTexture | null>(null);
@@ -186,6 +193,7 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
   // disposes the first WebGLRenderer, which force-loses the GL context;
   // the async restore event was landing with nothing listening for it).
   const [renderGeneration, setRenderGeneration] = useState(0);
+  const [probe, setProbe] = useState<ProbeInfo | null>(null);
 
   // -- one-time scene setup ------------------------------------------------
   useEffect(() => {
@@ -220,6 +228,8 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
     scene.add(coastlineGroup);
     const boxGroup = new THREE.Group();
     scene.add(boxGroup);
+    const selectedPointGroup = new THREE.Group();
+    scene.add(selectedPointGroup);
 
     rendererRef.current = renderer;
     sceneRef.current = scene;
@@ -228,6 +238,7 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
     markerGroupRef.current = markerGroup;
     coastlineGroupRef.current = coastlineGroup;
     boxGroupRef.current = boxGroup;
+    selectedPointGroupRef.current = selectedPointGroup;
     circleTextureRef.current = makeCircleTexture();
     ringTextureRef.current = makeRingTexture();
     raycasterRef.current = new THREE.Raycaster();
@@ -269,6 +280,20 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
       const hit = hits[0]?.object as THREE.Sprite | undefined;
       return (hit?.userData['observationId'] as string | undefined) ?? null;
     };
+    const raycastModelPoint = (e: PointerEvent) => {
+      const raycaster = raycasterRef.current;
+      const plane = planeRef.current;
+      const cam = cameraRef.current;
+      if (!raycaster || !plane || !cam) return null;
+      raycaster.setFromCamera(pointerToNdc(e), cam);
+      const hit = raycaster.intersectObject(plane, false)[0];
+      return hit ? projectWorldToGeo(hit.point.x, hit.point.z, propsRef.current.slice.bounds) : null;
+    };
+    const updateProbe = (e: PointerEvent) => {
+      const point = raycastModelPoint(e);
+      if (!point) { setProbe(null); return; }
+      setProbe({ ...point, value: sampleSliceNearest(propsRef.current.slice, point) });
+    };
 
     const onPointerDown = (e: PointerEvent) => {
       dragging = true;
@@ -286,8 +311,9 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
         lastY = e.clientY;
       } else {
         const id = raycastMarkerId(e);
-        canvas.style.cursor = id ? 'pointer' : 'grab';
+        canvas.style.cursor = 'crosshair';
         propsRef.current.onHoverObservation(id);
+        updateProbe(e);
       }
     };
     const onPointerUp = (e: PointerEvent) => {
@@ -297,11 +323,16 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
       if (moved <= CLICK_MOVE_THRESHOLD_PX) {
         const id = raycastMarkerId(e);
         if (id) propsRef.current.onSelectObservation(id);
+        else {
+          const point = raycastModelPoint(e);
+          if (point) propsRef.current.onSelectModelPoint(point);
+        }
       }
     };
     const onPointerLeave = () => {
       dragging = false;
       propsRef.current.onHoverObservation(null);
+      setProbe(null);
     };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -385,6 +416,7 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
       ringTextureRef.current?.dispose();
       disposeGroupContents(coastlineGroupRef.current);
       disposeGroupContents(boxGroupRef.current);
+      disposeGroupContents(selectedPointGroupRef.current);
 
       renderer.dispose();
       rendererRef.current = null;
@@ -399,6 +431,7 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
       raycasterRef.current = null;
       coastlineGroupRef.current = null;
       boxGroupRef.current = null;
+      selectedPointGroupRef.current = null;
     };
     // Scene/camera/renderer/controls/textures are constructed once; the
     // plane and markers are rebuilt by the effects below whenever real data
@@ -678,9 +711,44 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
     }
   }, [props.coastline, props.slice, renderGeneration]);
 
+  // A persistent high-contrast reticle makes an arbitrary selected model
+  // point unmistakable against any scientific colour ramp. WebGL line width
+  // is effectively fixed at one pixel on most platforms, so use filled ring
+  // geometry plus a beacon rather than relying on thin cross-lines alone.
+  useEffect(() => {
+    const group = selectedPointGroupRef.current;
+    if (!group) return;
+    disposeGroupContents(group); group.clear();
+    const selected = propsRef.current.selectedModelPoint;
+    if (!selected) return;
+    const { x, z } = projectGeoToWorld(selected.latitude, selected.longitude, propsRef.current.slice.bounds);
+    const y = depthToWorldY(propsRef.current.depthM, propsRef.current.exaggeration) + 0.03;
+    const color = 0xff3dc8; // magenta contrasts both thermal and ocean ramps
+    const lineMaterial = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 1, depthTest: false });
+    const ringMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthTest: false });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.22, 40), ringMaterial);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(x, y, z);
+    ring.renderOrder = 30;
+    group.add(ring);
+    const size = 1.55;
+    const crossA = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x - size, y + 0.01, z), new THREE.Vector3(x + size, y + 0.01, z)]), lineMaterial);
+    const crossB = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, y + 0.01, z - size), new THREE.Vector3(x, y + 0.01, z + size)]), lineMaterial);
+    crossA.renderOrder = 31; crossB.renderOrder = 31;
+    group.add(crossA); group.add(crossB);
+    const beacon = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, y, z), new THREE.Vector3(x, y + 2.4, z)]), lineMaterial);
+    beacon.renderOrder = 31;
+    group.add(beacon);
+  }, [props.selectedModelPoint, props.slice, props.depthM, props.exaggeration, renderGeneration]);
+
   return (
     <div ref={containerRef} className={styles.wrap}>
       <canvas ref={canvasRef} className={styles.canvas} aria-label="3D ocean model scene" />
+      {probe && <div className={styles.probe}>
+        <span>PROBE · {probe.latitude.toFixed(3)}°N, {probe.longitude.toFixed(3)}°E</span>
+        <strong>{props.slice.variable} · {props.depthM} m · {props.slice.timestamp.slice(0, 16).replace('T', ' ')} UTC</strong>
+        <span>{probe.value === null ? 'Land or missing grid cell' : `${probe.value.toFixed(2)} (nearest real grid cell)`}</span>
+      </div>}
     </div>
   );
 }

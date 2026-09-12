@@ -7,8 +7,11 @@
   display: block;
   width: 100%;
   height: 100%;
-  cursor: grab;
+  cursor: crosshair;
 }
 .canvas:active {
-  cursor: grabbing;
+  cursor: crosshair;
 }
+.probe { position:absolute; top:64px; left:14px; z-index:2; display:flex; flex-direction:column; gap:3px; max-width:340px; padding:8px 10px; border:1px solid var(--cyan-edge); border-radius:var(--radius-sm); background:color-mix(in srgb, var(--surface-base) 88%, transparent); color:var(--text-secondary); font-family:var(--font-mono); font-size:var(--fs-caption); pointer-events:none; }
+.probe strong { color:var(--text-primary); font-weight:600; }
+@media (max-width: 720px) { .probe { top:94px; max-width:calc(100% - 28px); } }

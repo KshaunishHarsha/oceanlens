@@ -9,6 +9,7 @@ import { create } from 'zustand';
 import type { OceanVariable } from '@/domain/variables';
 import type { PlatformType } from '@/domain/platforms';
 import type { LayerId } from '@/domain/layers';
+import type { ModelAnalysisPoint } from '@/domain/types';
 
 export type RenderMode = 'volume' | 'depthSlice' | 'transect' | 'isosurface';
 export type CameraPreset = 'regional' | 'transect' | 'profile' | 'reset';
@@ -49,6 +50,7 @@ export interface AnalysisState {
   cameraPreset: CameraPreset;
   layers: Partial<Record<LayerId, boolean>>;
   selectedObservationId: string | null;
+  selectedModelPoint: ModelAnalysisPoint | null;
   hoveredObservationId: string | null;
   selectedTransect: Transect | null;
   transectEnabled: boolean;
@@ -76,6 +78,7 @@ export interface AnalysisActions {
   toggleLayer(id: LayerId): void;
   setLayer(id: LayerId, on: boolean): void;
   selectObservation(id: string | null): void;
+  selectModelPoint(point: ModelAnalysisPoint | null): void;
   hoverObservation(id: string | null): void;
   setTransect(t: Transect | null): void;
   toggleTransect(): void;
@@ -119,6 +122,7 @@ export const INITIAL_STATE: AnalysisState = {
     'context.bathymetry': true,
   },
   selectedObservationId: null,
+  selectedModelPoint: null,
   hoveredObservationId: null,
   selectedTransect: null,
   transectEnabled: false,
@@ -183,7 +187,9 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
   /* Selecting an observation opens the profile tab — the brief requires the
      evidence panel to respond to a scene click without a second action. */
   selectObservation: (id) =>
-    set({ selectedObservationId: id, evidenceTab: id ? 'profile' : get().evidenceTab }),
+    set({ selectedObservationId: id, selectedModelPoint: null, evidenceTab: id ? 'profile' : get().evidenceTab }),
+
+  selectModelPoint: (point) => set({ selectedModelPoint: point, selectedObservationId: null }),
 
   hoverObservation: (id) => set({ hoveredObservationId: id }),
 

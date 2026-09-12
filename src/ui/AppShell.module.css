@@ -21,10 +21,53 @@
   min-height: 0;
   display: flex;
 }
+.leftPane, .rightPane {
+  position: relative;
+  flex: none;
+  min-width: 0;
+  height: 100%;
+  transition: width 160ms ease;
+}
+.leftPane { width: var(--rail-control); }
+.rightPane { width: var(--panel-evidence); }
+.leftPane[data-collapsed='true'], .rightPane[data-collapsed='true'] { width: 30px; }
+.paneContent { width: 100%; height: 100%; overflow: hidden; }
+.leftPane .paneContent > *, .rightPane .paneContent > * {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.paneToggle {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--cyan-bright);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.paneToggle:hover { background: var(--surface-hover); }
+.paneToggle[data-side='left'] { right: -11px; }
+.paneToggle[data-side='right'] { left: -11px; }
+.leftPane[data-collapsed='true'] .paneContent, .rightPane[data-collapsed='true'] .paneContent { visibility: hidden; }
 
 @media (max-width: 900px) {
   .middle {
     flex-direction: column;
     overflow-y: auto;
   }
+  .leftPane, .rightPane { width: 100%; height: auto; }
+  .leftPane .paneContent, .rightPane .paneContent { height: auto; }
+  .leftPane .paneContent > *, .rightPane .paneContent > * { height: auto; }
+  .leftPane[data-collapsed='true'], .rightPane[data-collapsed='true'] { width: 100%; height: 30px; }
+  .paneToggle { top: 15px; transform: none; width: 48px; height: 22px; }
+  .paneToggle[data-side='left'] { right: 12px; }
+  .paneToggle[data-side='right'] { left: auto; right: 12px; }
 }

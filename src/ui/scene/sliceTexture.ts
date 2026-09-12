@@ -5,7 +5,7 @@
  * purpose — this is the part of the scene that a unit test can actually
  * exercise without a browser. */
 
-import type { GeoBounds, VolumeSlice } from '@/domain/types';
+import type { GeoBounds, GeoPoint, VolumeSlice } from '@/domain/types';
 import { sampleRamp } from './palettes';
 import type { PaletteName } from '@/domain/variables';
 
@@ -112,6 +112,30 @@ export function projectGeoToWorld(latitude: number, longitude: number, bounds: G
     x: (longitude - lonMid) * WORLD_UNITS_PER_DEGREE * lonCorrection,
     z: -(latitude - latMid) * WORLD_UNITS_PER_DEGREE,
   };
+}
+
+/** Inverse of projectGeoToWorld, used only for a deliberate click on the
+ * real model plane. The point is clamped to the plane's actual bounds. */
+export function projectWorldToGeo(x: number, z: number, bounds: GeoBounds): GeoPoint {
+  const latMid = (bounds.minLat + bounds.maxLat) / 2;
+  const lonMid = (bounds.minLon + bounds.maxLon) / 2;
+  const latitude = latMid - z / WORLD_UNITS_PER_DEGREE;
+  const longitude = lonMid + x / (WORLD_UNITS_PER_DEGREE * longitudeCorrection(bounds));
+  return {
+    latitude: Math.min(bounds.maxLat, Math.max(bounds.minLat, latitude)),
+    longitude: Math.min(bounds.maxLon, Math.max(bounds.minLon, longitude)),
+  };
+}
+
+/** Nearest real grid cell at a geographic probe point. Missing/land cells
+ * remain null: a hover readout must never invent an ocean value over land. */
+export function sampleSliceNearest(slice: VolumeSlice, point: GeoPoint): number | null {
+  const x = Math.round(((point.longitude - slice.bounds.minLon) / (slice.bounds.maxLon - slice.bounds.minLon)) * (slice.nx - 1));
+  const y = Math.round(((point.latitude - slice.bounds.minLat) / (slice.bounds.maxLat - slice.bounds.minLat)) * (slice.ny - 1));
+  const xi = Math.min(slice.nx - 1, Math.max(0, x));
+  const yi = Math.min(slice.ny - 1, Math.max(0, y));
+  const index = yi * slice.nx + xi;
+  return slice.valid[index] ? slice.values[index] ?? null : null;
 }
 
 /**

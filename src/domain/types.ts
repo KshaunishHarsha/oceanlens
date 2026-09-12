@@ -12,6 +12,10 @@ export interface GeoPoint {
   readonly longitude: number;
 }
 
+/** A user-selected point in the model grid. It is model-only unless an
+ * observation is separately selected nearby. */
+export interface ModelAnalysisPoint extends GeoPoint {}
+
 export interface GeoBounds {
   readonly minLat: number;
   readonly maxLat: number;

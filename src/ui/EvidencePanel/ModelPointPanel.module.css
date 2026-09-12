@@ -1,0 +1,6 @@
+.wrap { padding: 14px; display:flex; flex-direction:column; gap:10px; }
+.caption { color:var(--text-label); font-size:var(--fs-caption); letter-spacing:var(--ls-caption); }
+h2 { margin:0; color:var(--text-primary); font-size:18px; }
+.note { margin:0; padding:9px; background:var(--surface-raised); border-left:2px solid var(--cyan-edge); color:var(--text-secondary); font-size:var(--fs-body); line-height:1.5; }
+.meta { margin:0; display:grid; gap:5px; }.meta div { display:flex; gap:10px; }.meta dt { width:82px; color:var(--text-label); font-size:var(--fs-caption); }.meta dd { margin:0; font-family:var(--font-mono); color:var(--text-primary); font-size:var(--fs-body); }
+.profile { max-height:260px; overflow:auto; border-top:1px solid var(--border-faint); }.profile div { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--border-faint); font-family:var(--font-mono); font-size:var(--fs-body); color:var(--text-secondary); }.profile strong { color:var(--text-primary); }

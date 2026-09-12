@@ -4,7 +4,10 @@
  * that isn't a successful JSON response. No retry, no caching, no silent
  * fallback — if the API is unreachable, the caller must know. */
 
-const DEFAULT_BASE_URL = 'http://localhost:8000';
+// The local FastAPI server is explicitly bound to IPv4 in the demo command.
+// `localhost` can resolve to IPv6 first in a browser, producing an avoidable
+// "backend unreachable" error even while 127.0.0.1:8000 is healthy.
+const DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
 
 function baseUrl(): string {
   const fromEnv = import.meta.env.VITE_API_BASE_URL;
