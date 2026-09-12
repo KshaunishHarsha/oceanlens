@@ -1,11 +1,12 @@
 import { VARIABLES } from '@/domain/variables';
 import { QUALITY } from '@/domain/quality';
-import { useAnalysisStore } from '@/state/analysisStore';
+import { DEPTH_STOPS, useAnalysisStore } from '@/state/analysisStore';
 import { useDataStore } from '@/state/dataStore';
 import { filterObservations } from '@/state/filterObservations';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/states/StatusStates';
 import { ThreeSceneCanvas } from '@/ui/scene/ThreeSceneCanvas';
 import { useVolumeSlice } from '@/ui/scene/useVolumeSlice';
+import { useCoastline } from '@/ui/scene/useCoastline';
 import { selectSceneStageView } from '@/ui/scene/sceneStageState';
 import styles from './SceneStage.module.css';
 
@@ -51,6 +52,11 @@ export function SceneStage() {
   // Hooks must run unconditionally; the hook itself no-ops (status: 'idle')
   // until there is an adapter, a real timestamp, and this branch is reached.
   const sliceQuery = useVolumeSlice(variable, variableReady ? timestamp : null, depthM);
+  // Real vendored coastline reference (scripts/prepare-coastline.mjs) —
+  // fetched once regardless of which branch below ends up rendering;
+  // ThreeSceneCanvas treats a still-loading/failed coastline (data: null)
+  // as "draw nothing", never a fabricated placeholder outline.
+  const coastlineQuery = useCoastline();
 
   // Branch selection is a pure function (sceneStageState.ts) rather than
   // inline ternaries, specifically so it's unit-testable independent of
@@ -102,6 +108,7 @@ export function SceneStage() {
               hoveredObservationId={hoveredObservationId}
               onSelectObservation={selectObservation}
               onHoverObservation={hoverObservation}
+              coastline={coastlineQuery.data}
             />
           ) : null}
 
@@ -178,6 +185,18 @@ export function SceneStage() {
             <div className={styles.markerLegendNote}>
               {filteredObservations.length} of {observations.length} real observations shown
               (current filters)
+            </div>
+          </div>
+
+          <div className={styles.depthRuler}>
+            <div className={styles.depthRulerTitle}>DEPTH REFERENCE</div>
+            <div className={styles.depthTickList}>
+              {DEPTH_STOPS.map((d) => (
+                <span key={d} className={styles.depthTick} data-active={d === depthM}>
+                  <span className={styles.depthTickMark} aria-hidden="true" />
+                  {d === 0 ? 'surface' : `${d} m`}
+                </span>
+              ))}
             </div>
           </div>
         </>

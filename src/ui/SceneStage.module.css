@@ -127,6 +127,56 @@
   color: var(--text-muted);
 }
 
+/* Real depth reference — the same DEPTH_STOPS the depth slider is built
+   from, with the currently-selected stop highlighted, so the slice plane's
+   real vertical motion (visible against the 3D scene's fixed depth-box
+   frame) has a legible scale beside it. Mirrors the Claude Design
+   reference's depth ruler, as an HTML overlay rather than in-scene 3D
+   text sprites — simpler and equally legible. */
+.depthRuler {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(11, 23, 37, 0.9);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 9px 12px 10px;
+  pointer-events: none;
+}
+.depthRulerTitle {
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-caption);
+  color: var(--text-label);
+  margin-bottom: 6px;
+}
+.depthTickList {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.depthTick {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+.depthTickMark {
+  width: 6px;
+  height: 1px;
+  background: var(--border-hover);
+  flex: none;
+}
+.depthTick[data-active='true'] {
+  color: var(--cyan-bright);
+}
+.depthTick[data-active='true'] .depthTickMark {
+  width: 10px;
+  height: 1.5px;
+  background: var(--cyan-bright);
+}
+
 /* Visually hidden but announced by screen readers on marker selection. */
 .srAnnounce {
   position: absolute;

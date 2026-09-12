@@ -15,9 +15,9 @@ Not a dashboard. A scientific operations console for a government audience.
 
 | | |
 |---|---|
-| Current phase | **Phase 4A and Phase 5A (all three steps) complete, a backend correctness hardening pass, and a browser-based responsive/accessibility QA pass — all done as of 2026-09-12.** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. Both real backend bugs found-and-worked-around during 5A are now genuinely fixed in the backend. The narrow-viewport (300px control-rail) layout gap noted-but-never-checked across all three 5A step reports has now actually been checked in a real browser and four real defects it found are fixed — see "Responsive/accessibility QA pass" below. Internal-round plan (0→1→2→2.5→3→4A→5A→...) has no phase left before 4B/5B, which are explicitly deferred to finalist work — see below for the recommended next task. |
+| Current phase | **Phase 4A and Phase 5A complete, backend correctness hardening, a responsive/accessibility QA pass, and a scene visual pass (real coastline + depth-box frame) — all done as of 2026-09-12.** Step 3/4 wording overlap in 4A noted previously; treat 4A as functionally done. Both real backend bugs found-and-worked-around during 5A are now genuinely fixed. The narrow-viewport layout gap noted across all three 5A step reports is checked and fixed. The 3D scene now also shows a real vendored coastline (India/Sri Lanka/Bangladesh/Myanmar/Thailand/Indonesia) and a fixed depth-box frame the slice plane visibly moves inside — see "Scene visual pass" below. Internal-round plan (0→1→2→2.5→3→4A→5A→...) has no phase left before 4B/5B, explicitly deferred to finalist work — see below for the recommended next task. |
 | Proposed next order | 0 → 1 → 2 → **2.5** → 3 → **4A** → **5A** → 4B → 5B → 6 → 7. The internal round should prioritise a working 3D model/observation loop before advanced rendering or data expansion. |
-| Repo state | Backend: **101 pytest**, untouched by this responsive-QA pass (frontend-only: CSS + `title` attributes + tests). `SceneStage` renders a real Three.js/WebGL scene with clickable real Argo markers, recovers correctly from a lost WebGL context, verified working at both the desktop (1600x1000) and 300px-control-rail (1440x900) breakpoints. `EvidencePanel`'s three tabs are all real and now verified legible at both breakpoints: Profile, Comparison, Provenance. `/model-column` genuinely snaps to the nearest real timestamp; `/collocation` returns an honest `422` for `currentSpeed`/`chlorophyll`. **214 frontend tests green** (22 skipped without a live backend), tsc clean, build OK (bundle ~837 KB gzip ~225 KB, module count unchanged — no new imports this pass, only CSS/attribute edits). |
+| Repo state | Backend: **101 pytest**, untouched since the hardening pass. `SceneStage` renders a real Three.js/WebGL scene with clickable real Argo markers, a real vendored coastline, and a fixed depth-box frame the slice plane visibly moves inside as depth changes; recovers correctly from a lost WebGL context; verified working at both the desktop (1600x1000) and 300px-control-rail (1440x900) breakpoints. `EvidencePanel`'s three tabs are all real and verified legible at both breakpoints: Profile, Comparison, Provenance. `/model-column` genuinely snaps to the nearest real timestamp; `/collocation` returns an honest `422` for `currentSpeed`/`chlorophyll`. **227 frontend tests green** (22 skipped without a live backend), tsc clean, build OK (bundle ~840 KB gzip ~226 KB, 80 modules). |
 
 ## Internal-round pivot — authoritative next work
 
@@ -56,6 +56,109 @@ dates and provenance accurately.
   sensor-plugin system.
 - Advanced volume rendering, full colourbar editing/log scaling, production scaling and
   polished outreach mode.
+
+## Scene visual pass (2026-09-12) — real coastline + a depth-box frame, replicating the Claude Design reference's "cool" look in Three.js
+
+**User-requested, comparing directly against the original Claude Design reference** (`ocean-scene.jsx` + `screenshots/scene.png`, read live via `DesignSync` this session — the user ran `/design-login` to authorize it). The reference isn't a literal "global map": it's a 2D-canvas oblique-projection scene with real India/Sri Lanka coastline (via `d3-geo` + a live-fetched world-atlas TopoJSON) framing an analysis "box" whose walls and depth ruler make the depth-slice plane's vertical position legible. Our Three.js scene (Phase 4A) already repositioned the plane by real depth — it just had no coastline and no frame, so that motion was invisible. Replicated the *rendering technique* in real Three.js geometry, not the reference's fabricated `OPERATIONAL`/`verified` labels (already rejected project-wide), and deliberately **excluded** the reference's bathymetry contour lines — reading its source confirmed those were a generalized distance-from-land approximation, not real depth soundings, and this project has no real bathymetry data to show honestly.
+
+- **New real vendored dataset**: `scripts/prepare-coastline.mjs` fetches world-atlas's
+  `countries-50m.json` (real Natural Earth 1:50m data, public domain) once, decodes the
+  TopoJSON topology inline (no new runtime or devDependency — matches "smallest dependency
+  set possible"), restricts to the six countries an honest Bay-of-Bengal coastline needs
+  (India, Sri Lanka, Bangladesh, Myanmar, Thailand, Indonesia — a landlocked country whose
+  bbox merely grazes a padding margin, e.g. Nepal or Afghanistan, is display-irrelevant
+  clutter for an ocean scene, not a scientific inclusion decision), clips each ring to
+  within 6° of the real region, decimates long rings, and writes
+  `public/data/coastline/bay-of-bengal-coastline.json` (24 KB, committed) — vendored and
+  served as a static asset (`/data/coastline/...`), never fetched from a CDN at runtime,
+  directly fixing the "must be vendored... has to run offline" gotcha CLAUDE.md already
+  recorded for this exact dataset from the original reference. The script fails loudly if
+  a named country no longer matches the source data, rather than silently shipping less
+  coastline than intended.
+- **New**: `src/ui/scene/coastline.ts` (pure — same split as `sliceTexture.ts`:
+  `projectCoastline()` projects every real ring through the exact same
+  `projectGeoToWorld()` the plane and markers already use, so the coastline can never drift
+  from what it outlines). `useCoastline.ts` (fetch hook, module-cached, no synthetic
+  fallback — a failed/still-loading fetch renders no coastline, never a fabricated one).
+- **`ThreeSceneCanvas.tsx` additions** (two new Group refs, own build/dispose effects,
+  same lifecycle discipline as the existing plane/marker effects — including full disposal
+  on unmount and on `renderGeneration` bump after a WebGL context restore):
+  - **Coastline**: one `THREE.LineLoop` per real ring, at `y=0.01` (sea surface).
+  - **Depth-box frame**: south + east translucent walls, a floor rim, a dashed top rim, and
+    four vertical corner edges, sized to the real region (`computePlaneWorldSize`) and a
+    **fixed** reference depth, `MAX_BOX_DEPTH_M` (the max of `DEPTH_STOPS`, imported from
+    `analysisStore` — single source of truth, not a separately hand-picked number) —
+    deliberately NOT the currently-selected depth, which is what the slice plane's existing
+    motion needs a stable frame to be visible against.
+- **Real finding, fixed rather than worked around**: after wiring both up, they were
+  invisible. Empirically projecting the box's real world-space corners through the actual
+  running camera (not assumed) showed them landing far outside the canvas — `computePlaneWorldSize`
+  on the real region gives a **~70×75 world-unit** box, but the scene's camera zoom range
+  (inherited unchanged from Phase 4A) topped out at `radius: 60`, which was too close to
+  ever fit the box, let alone any coastline beyond it. Root-caused with an instrumented
+  Playwright check (`Vector3.project(camera)` on real box corners), not guessed. Fixed by
+  raising the max zoom-out to **110** (`MAX_ZOOM_OUT_RADIUS`); the default (18) and closest
+  zoom (4) are untouched, so every previously-verified marker/plane view at default zoom is
+  pixel-identical to before — this only extends how far a user can optionally zoom out.
+- **A second false alarm, also verified rather than assumed**: solid dark blocky shapes
+  appeared near Myanmar's coast at the new wider zoom. Isolated by toggling the coastline
+  and the box walls off independently (a stale second dev-server process on the same port
+  briefly made the first isolation attempt look like a no-op — caught by checking `ps`/`lsof`
+  before trusting the result, not by assuming the fix didn't work) — neither was the cause.
+  They are the scene's own **pre-existing, real HYCOM land mask** (`valid[i]===0` cells,
+  already rendered as fully transparent over the renderer's near-black clear colour since
+  Phase 4A step 1) — genuine, honest real data that was simply never visible before because
+  no one could zoom out far enough to see that part of the plane. Not a bug; left exactly as
+  it was.
+- **Tests**: `coastline.test.ts` (5) — real-coordinate projection, the south=+Z convention,
+  degenerate-ring dropping, feature-name preservation, empty-input honesty.
+  `coastlineAsset.test.ts` (4) — sanity-checks the actual committed JSON asset itself (real
+  provenance fields, the six expected countries present, every coordinate in a real
+  lat/lon range, India's points genuinely near the region) — guards against a future
+  re-run of the prep script silently committing something broken.
+  `ThreeSceneCanvas.coastlineBox.guard.test.ts` (4) — source-level guard (same honest
+  limitation as `ThreeSceneCanvas.contextLoss.test.ts`: no WebGL in this test harness) that
+  both groups are created, disposed on unmount, and that the box effect's dependency array
+  excludes `props.depthM` specifically (the one-line check that would catch someone
+  "fixing" the box to track the selected depth and silently removing the whole point of a
+  fixed frame). **227 total passing** (up from 214, +13 new), 22 skipped without a live
+  backend (unchanged — no new adapter/backend call this pass).
+- **Verified**: `tsc --noEmit` clean; `npx vitest run` 227/227; `npm run build` clean, 80
+  modules (up from 78); backend `pytest` 101/101 unchanged; `npm run test:integration`
+  21/21 unchanged; confirmed the coastline JSON is present under `dist/data/coastline/`
+  after a production build (static asset copy verified, not assumed).
+- **Verified in an actual browser** (headless Chromium via Playwright, screenshots at
+  default and max zoom): the coastline is invisible at the default (unchanged) zoom — matches
+  every prior screenshot exactly, zero regression — and at max zoom shows real India/Myanmar
+  coastline tracing around the analysis box, the box's dashed top rim and translucent walls
+  visible, and — the actual ask — the slice plane visibly at the TOP of the box at a shallow
+  depth (120 m) and visibly sunk to the BOTTOM of the box at a deep one (985 m, set via the
+  real depth slider), a direct side-by-side confirmation that "the planes moving up and
+  down" is now legible, not just technically true. Marker click-to-select re-confirmed
+  working through the depth change (a real observation, `ARGO 4903776`, correctly selected
+  via the depth slider interaction path).
+- **New scene overlay**: `SceneStage.tsx` gained a `DEPTH REFERENCE` panel (bottom-right,
+  mirrors the `legend` box's styling) listing the real `DEPTH_STOPS` (surface/50/100/250/
+  500/1000 m) with the currently-selected one highlighted in cyan — an HTML overlay rather
+  than in-scene 3D text sprites (simpler, equally legible, consistent with the existing
+  on-canvas legend's own approach).
+- **Gaps, stated plainly**:
+  - The depth-box frame's south+east wall choice (matching the reference) means the other
+    two walls are never drawn even at max zoom — deliberate (the camera orbits freely, so
+    this only affects which two sides can ever occlude something behind them, not what's
+    reachable), not an oversight.
+  - The vendored coastline is clipped to a 6° margin around the region — visually it reads
+    as "nearby coast," not a full political map; this was a deliberate choice (the
+    reference showed partial coastlines too, and a naive wider margin pulled in irrelevant
+    landlocked countries — see the prep script's own comment) but means, e.g., northern
+    India (Delhi, the Himalayas) is not present even at max zoom. This is an honest,
+    intentional scope limit, not a data error.
+  - `MAX_ZOOM_OUT_RADIUS` (110) comfortably fits the box and the nearest coastline but not
+    every clipped country's full extent (some points are 100+ world units out) — tuned for
+    "box + immediate context," not "see the entire vendored file at once."
+  - No text labels (e.g. "INDIA", "BAY OF BENGAL") were added on the coastline itself,
+    unlike the reference — the existing header title/subtitle already names the region in
+    HTML; in-scene 3D text labels were judged not worth the added complexity for this pass.
 
 ## Responsive/accessibility QA pass (2026-09-12) — the narrow-viewport gap from every 5A step report, actually checked
 

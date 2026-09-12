@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { ObservationProfile, VolumeSlice } from '@/domain/types';
 import type { PaletteName } from '@/domain/variables';
+import { DEPTH_STOPS } from '@/state/analysisStore';
 import {
   buildSliceTexture,
   computePlaneWorldSize,
@@ -22,6 +23,7 @@ import {
   HOVERED_RING_COLOR_HEX,
   SELECTED_RING_COLOR_HEX,
 } from './markerAppearance';
+import { projectCoastline, type CoastlineData } from './coastline';
 import styles from './ThreeSceneCanvas.module.css';
 
 export interface ThreeSceneCanvasProps {
@@ -40,11 +42,31 @@ export interface ThreeSceneCanvasProps {
   readonly hoveredObservationId: string | null;
   readonly onSelectObservation: (id: string) => void;
   readonly onHoverObservation: (id: string | null) => void;
+  /** Real vendored coastline reference (scripts/prepare-coastline.mjs) —
+   * null while it's still loading or failed to load. A missing coastline
+   * degrades to "no coastline drawn", never a fabricated placeholder
+   * outline. */
+  readonly coastline: CoastlineData | null;
 }
 
 const MARKER_BASE_SCALE = 1.3;
 const RING_SCALE_MULTIPLIER = 1.7;
 const CLICK_MOVE_THRESHOLD_PX = 6;
+/** Fixed reference depth for the analysis-volume "box" frame — deliberately
+ * NOT `props.depthM` (which is where the slice PLANE currently sits). The
+ * box is a stable spatial frame the plane visibly moves inside as the user
+ * changes depth; if the box itself resized to match the selected depth,
+ * there would be nothing fixed left to see that motion against. Uses the
+ * same DEPTH_STOPS the depth slider itself is built from (single source of
+ * truth), not a separately hand-picked number. */
+const MAX_BOX_DEPTH_M = Math.max(...DEPTH_STOPS);
+/** Furthest the camera can zoom out — large enough that the analysis-volume
+ * box (see MAX_BOX_DEPTH_M above) fits fully in frame with room to spare,
+ * and the nearest real coastline (Bangladesh/Myanmar/Sri Lanka, all close
+ * to the region) becomes visible around it. Verified empirically by
+ * projecting the box's real corners through the camera at the old max (60)
+ * — they landed far outside the canvas — and re-checking at this value. */
+const MAX_ZOOM_OUT_RADIUS = 110;
 
 /** Orbit camera: drag to rotate, wheel to zoom. Deliberately simple — no
  * external controls dependency, clamped ranges so the scene can't be
@@ -140,6 +162,8 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
   const orbitRef = useRef<SimpleOrbitCamera | null>(null);
   const planeRef = useRef<THREE.Mesh | null>(null);
   const markerGroupRef = useRef<THREE.Group | null>(null);
+  const coastlineGroupRef = useRef<THREE.Group | null>(null);
+  const boxGroupRef = useRef<THREE.Group | null>(null);
   const markerEntriesRef = useRef<MarkerEntry[]>([]);
   const circleTextureRef = useRef<THREE.CanvasTexture | null>(null);
   const ringTextureRef = useRef<THREE.CanvasTexture | null>(null);
@@ -192,12 +216,18 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
 
     const markerGroup = new THREE.Group();
     scene.add(markerGroup);
+    const coastlineGroup = new THREE.Group();
+    scene.add(coastlineGroup);
+    const boxGroup = new THREE.Group();
+    scene.add(boxGroup);
 
     rendererRef.current = renderer;
     sceneRef.current = scene;
     cameraRef.current = camera;
     orbitRef.current = orbit;
     markerGroupRef.current = markerGroup;
+    coastlineGroupRef.current = coastlineGroup;
+    boxGroupRef.current = boxGroup;
     circleTextureRef.current = makeCircleTexture();
     ringTextureRef.current = makeRingTexture();
     raycasterRef.current = new THREE.Raycaster();
@@ -275,7 +305,16 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
     };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      orbit.zoom(e.deltaY, 4, 60);
+      // Max radius raised from 60 to MAX_ZOOM_OUT_RADIUS: at 60 the analysis-
+      // volume box (~70x75 world units, computePlaneWorldSize on the real
+      // region) could not fully fit in frame even zoomed all the way out —
+      // confirmed by projecting its corners through the real camera/canvas
+      // (they landed far outside the canvas bounds) — so neither the box
+      // frame nor any of the real coastline around it were ever reachable.
+      // Default (18) and closest zoom (4) are untouched, preserving every
+      // previously-verified marker/plane view exactly; this only extends
+      // how far OUT the user can optionally go.
+      orbit.zoom(e.deltaY, 4, MAX_ZOOM_OUT_RADIUS);
     };
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
@@ -344,6 +383,8 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
       disposeMarkers(markerEntriesRef.current);
       circleTextureRef.current?.dispose();
       ringTextureRef.current?.dispose();
+      disposeGroupContents(coastlineGroupRef.current);
+      disposeGroupContents(boxGroupRef.current);
 
       renderer.dispose();
       rendererRef.current = null;
@@ -356,6 +397,8 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
       circleTextureRef.current = null;
       ringTextureRef.current = null;
       raycasterRef.current = null;
+      coastlineGroupRef.current = null;
+      boxGroupRef.current = null;
     };
     // Scene/camera/renderer/controls/textures are constructed once; the
     // plane and markers are rebuilt by the effects below whenever real data
@@ -513,6 +556,128 @@ export function ThreeSceneCanvas(props: ThreeSceneCanvasProps) {
     renderGeneration,
   ]);
 
+  // -- rebuild the analysis-volume "box" frame whenever the real region
+  // bounds or vertical exaggeration change. Its bottom is a FIXED reference
+  // depth (MAX_BOX_DEPTH_M), deliberately not the currently selected depth
+  // — this is what makes the slice plane's existing depth-based vertical
+  // motion visible: a plane moving inside a fixed frame reads as motion; a
+  // lone plane floating in an empty void does not, even though it was
+  // always genuinely repositioning by real depth. South/east walls only
+  // (matching the Claude Design reference this replicates) — the camera
+  // can orbit freely, so which two of four walls are drawn doesn't limit
+  // what's visible, only which sides are ever occluding.
+  useEffect(() => {
+    const group = boxGroupRef.current;
+    if (!group) return;
+    const { slice, exaggeration } = propsRef.current;
+
+    disposeGroupContents(group);
+    group.clear();
+
+    const { width, depth } = computePlaneWorldSize(slice.bounds);
+    const halfW = width / 2;
+    const halfD = depth / 2;
+    const topY = 0;
+    const bottomY = depthToWorldY(MAX_BOX_DEPTH_M, exaggeration);
+
+    // South=+Z / north=-Z / east=+X / west=-X — same convention as the
+    // slice plane and projectGeoToWorld (see the plane-rebuild effect
+    // above and sliceTexture.ts).
+    const nwT = new THREE.Vector3(-halfW, topY, -halfD);
+    const neT = new THREE.Vector3(halfW, topY, -halfD);
+    const seT = new THREE.Vector3(halfW, topY, halfD);
+    const swT = new THREE.Vector3(-halfW, topY, halfD);
+    const nwB = new THREE.Vector3(-halfW, bottomY, -halfD);
+    const neB = new THREE.Vector3(halfW, bottomY, -halfD);
+    const seB = new THREE.Vector3(halfW, bottomY, halfD);
+    const swB = new THREE.Vector3(-halfW, bottomY, halfD);
+
+    const wallMaterial = (colorHex: number, opacity: number) =>
+      new THREE.MeshBasicMaterial({
+        color: colorHex,
+        transparent: true,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+
+    const southGeom = new THREE.BufferGeometry().setFromPoints([swT, seT, seB, swT, seB, swB]);
+    group.add(new THREE.Mesh(southGeom, wallMaterial(0x1b3a54, 0.22)));
+
+    const eastGeom = new THREE.BufferGeometry().setFromPoints([seT, neT, neB, seT, neB, seB]);
+    group.add(new THREE.Mesh(eastGeom, wallMaterial(0x16324a, 0.16)));
+
+    const rimMaterial = new THREE.LineBasicMaterial({
+      color: 0x789ebe,
+      transparent: true,
+      opacity: 0.35,
+    });
+    group.add(
+      new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([nwB, neB, seB, swB]), rimMaterial),
+    );
+
+    const topRim = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([nwT, neT, seT, swT, nwT]),
+      new THREE.LineDashedMaterial({
+        color: 0xa0c8e4,
+        transparent: true,
+        opacity: 0.5,
+        dashSize: 0.25,
+        gapSize: 0.2,
+      }),
+    );
+    topRim.computeLineDistances();
+    group.add(topRim);
+
+    const edgeMaterial = new THREE.LineBasicMaterial({
+      color: 0x8cb4d2,
+      transparent: true,
+      opacity: 0.26,
+    });
+    for (const [top, bottom] of [
+      [nwT, nwB],
+      [neT, neB],
+      [seT, seB],
+      [swT, swB],
+    ] as const) {
+      group.add(
+        new THREE.Line(new THREE.BufferGeometry().setFromPoints([top, bottom]), edgeMaterial),
+      );
+    }
+  }, [props.slice, props.exaggeration, renderGeneration]);
+
+  // -- rebuild the real coastline outline whenever it finishes loading or
+  // the real region bounds change. Coordinates are real vendored Natural
+  // Earth data (scripts/prepare-coastline.mjs), projected through the same
+  // projectGeoToWorld the plane and markers use, so the coastline can never
+  // drift from what it outlines. A still-loading or failed fetch (coastline
+  // null) simply draws nothing — never a fabricated placeholder outline.
+  useEffect(() => {
+    const group = coastlineGroupRef.current;
+    if (!group) return;
+
+    disposeGroupContents(group);
+    group.clear();
+
+    const { coastline, slice } = propsRef.current;
+    if (!coastline) return;
+
+    const projected = projectCoastline(coastline, slice.bounds);
+    const material = new THREE.LineBasicMaterial({
+      color: 0x6f96b0,
+      transparent: true,
+      opacity: 0.55,
+    });
+    for (const feature of projected) {
+      for (const ring of feature.rings) {
+        if (ring.points.length < 2) continue;
+        const points = ring.points.map((p) => new THREE.Vector3(p.x, 0.01, p.z));
+        const loop = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), material);
+        group.add(loop);
+      }
+    }
+  }, [props.coastline, props.slice, renderGeneration]);
+
   return (
     <div ref={containerRef} className={styles.wrap}>
       <canvas ref={canvasRef} className={styles.canvas} aria-label="3D ocean model scene" />
@@ -526,5 +691,26 @@ function disposeMarkers(entries: readonly MarkerEntry[]): void {
     entry.ring?.material.dispose();
     entry.stem.geometry.dispose();
     (entry.stem.material as THREE.Material).dispose();
+  }
+}
+
+/** Disposes every child's geometry/material in a group — used for the
+ * coastline and depth-box groups, whose contents are plain Line/Mesh
+ * objects rebuilt wholesale on every real-data or generation change.
+ * Materials may be shared across several children (the coastline draws
+ * every ring with one material instance); Three.js's `dispose()` is
+ * idempotent, so disposing it once per child that references it is safe,
+ * if slightly redundant. */
+function disposeGroupContents(group: THREE.Group | null): void {
+  if (!group) return;
+  for (const child of group.children) {
+    const obj = child as THREE.Mesh | THREE.Line | THREE.LineLoop;
+    obj.geometry?.dispose();
+    const mat = obj.material as THREE.Material | THREE.Material[] | undefined;
+    if (Array.isArray(mat)) {
+      for (const m of mat) m.dispose();
+    } else {
+      mat?.dispose();
+    }
   }
 }
