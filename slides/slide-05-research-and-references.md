@@ -45,12 +45,12 @@
 
 *(Real, existing, publicly available tools compared against what this system specifically adds — not a claim that nothing exists, but that nothing existing does this specific job.)*
 
-| Existing product | What it does well | What it doesn't do |
-|---|---|---|
-| **Ocean Data View (ODV)** — odv.awi.de | Desktop-grade plotting/gridding for observational datasets (Argo, CTD, WOCE, etc.); 135,000+ registered users; the field's standard offline analysis tool. | Desktop software, not browser-native; no live model overlay; no per-observation model-vs-observation statistic; no built-in data-honesty/provenance labelling. |
-| **Argovis** — argovis.colorado.edu | Fast, browser-based Argo float visualization and delivery, with a map/depth/time query interface and an API. | Observation-only — no ocean model field is rendered or compared; no RMSE/bias/agreement computation against a model; no 3D scene. |
-| **Copernicus Marine Service Viewer** | Genuinely co-locates in-situ observations with model and satellite layers in a 4D (lat/lon/depth/time) viewer, for several Essential Ocean Variables. | A general-purpose exploration/download tool, not an evidence workspace — no per-float drill-down with a computed agreement verdict, no explicit QC-vs-model-error distinction, no instrument-fault-detection framing. |
-| **INCOIS's own bulletins/portals** | Authoritative, India-specific operational ocean advisories and static reports. | Report-oriented, not interactive; no click-through from an advisory back to the specific float/model comparison that backs it. |
+| Existing product | Gap |
+|---|---|
+| **Ocean Data View** | Desktop-only; no live model overlay or per-observation statistic |
+| **Argovis** | Observation-only; no model comparison, no 3D scene |
+| **Copernicus Marine Viewer** | Co-locates layers, but no per-float agreement verdict or fault detection |
+| **INCOIS bulletins/portals** | Static reports; no click-through to the underlying comparison |
 
 **The gap this system fills:** every listed tool does *observation visualization* **or** *model visualization* **or** *static co-location* — none of them pairs a specific real observation with the specific real model value at its exact position/depth/time, computes an honest agreement statistic for that pair, and uses the same view to double as an instrument-fault detector, inside a single browser-native, install-free 3D workspace.
 
