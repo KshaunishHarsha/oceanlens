@@ -56,6 +56,31 @@ routine QC flag is visible immediately.
 *Left: observed vs. modelled, depth by depth. Right: agreement isn't asserted, it's computed —
 RMSE, mean bias, and per-depth-band verdicts from real data.*
 
+### Briefing mode — the evidence, explained in plain language
+
+The **Briefing mode** button in the command bar swaps the evidence panel for an AI-assisted
+briefing of the selected observation. Pick one of the preset questions (*"What does the
+model-observation agreement show?"*, *"What should I be cautious about in this evidence?"*,
+*"Summarise this selected observation in plain language."*) or ask your own, and get a short
+Situation / Evidence / Confidence / Limitation write-up.
+
+![Briefing mode](slides/screenshots/briefing-mode.jpg)
+
+*A briefing for Argo float 2902770. Every number in it — RMSE 0.70 °C, bias −0.21 °C, the
+per-depth-band verdicts — comes directly from the backend's computed collocation result.*
+
+It is deliberately constrained, not a general chatbot:
+
+- The model receives **only** the selected observation's already-computed collocation result
+  (RMSE, bias, depth bands, distance, time offset, sources) — no tools, no browsing, no live data,
+  and no ability to change a science result.
+- Its instructions forbid adding measurements, causes, hazards or certainty not present in that
+  evidence, and require it to state that this is historical cached data, not a live feed or forecast.
+- It is available for temperature and salinity only — the two variables with real
+  observed-vs-modelled evidence in this cache.
+- It is optional: it needs an OpenAI API key on the backend (see
+  [Optional: briefing mode](#optional-briefing-mode)). Everything else runs fully offline.
+
 ### What makes it different
 
 - **Evidence-first.** Most tools show model fields *or* observations. This fuses them into one
@@ -168,8 +193,10 @@ The frontend reaches the backend via `VITE_API_BASE_URL` (defaults to `http://lo
 ### Optional: briefing mode
 
 `POST /api/v1/briefing/{id}` generates a short natural-language reading of an *already-computed*
-collocation result. It is strictly optional and off by default — without
-`OCEANLENS_OPENAI_API_KEY` set on the backend, the route returns `503` and the UI hides the feature.
+collocation result. It is strictly optional and off by default. To enable it, set
+`OCEANLENS_OPENAI_API_KEY` (and optionally `OCEANLENS_OPENAI_MODEL`) in the repo-root `.env`, which
+the backend reads. Without a key the route returns `503`, and the Briefing panel shows that error
+instead of a briefing.
 The model is sent only the already-calculated evidence; it gets no tools, no live data access, and no
 ability to alter a science result.
 
