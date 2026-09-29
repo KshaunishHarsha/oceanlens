@@ -4,6 +4,10 @@ A browser-native ocean **evidence workspace** for INCOIS: for a chosen location,
 depth and time, see what the numerical model predicts, what an instrument
 actually observed, and how well they agree.
 
+**Demo video:** [Watch on YouTube](https://youtu.be/JT6XJFPMCFI)
+
+[![OceanLens India demo video](https://img.youtube.com/vi/JT6XJFPMCFI/hqdefault.jpg)](https://youtu.be/JT6XJFPMCFI)
+
 > Status: under construction, phase by phase. Phases 0–2 (typed foundation,
 > linked analysis state, real-data layer), the Python/FastAPI backend
 > refactor, the UI shell, and the interactive 3D depth-slice scene are
