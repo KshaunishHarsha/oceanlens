@@ -58,8 +58,14 @@ def horizontal_slice(
 
 def _iso_to_epoch(iso: str) -> float:
     from datetime import datetime
+    from app.errors import InvalidDateError
 
-    return datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp()
+    try:
+        return datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp()
+    except (ValueError, TypeError, AttributeError) as e:
+        raise InvalidDateError(
+            f"invalid date format: '{iso}'. Expected ISO 8601 string (e.g. 2023-09-25T00:00:00Z)"
+        ) from e
 
 
 def bilinear_column(

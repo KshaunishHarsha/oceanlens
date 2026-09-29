@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from app.data.cache_reader import get_cache
+from app.errors import InvalidDateError
 from app.models.queries import OceanVariable
 from app.models.responses import ModelColumnResponse, SliceResponse
 from app.services.slice_service import (
@@ -25,6 +26,8 @@ def slice_route(
         return get_slice(get_cache(), variable=variable.value, timestamp=timestamp, depth_m=depth_m)
     except VariableUnavailableError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except InvalidDateError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 @router.get("/model-column", response_model=ModelColumnResponse)
@@ -44,5 +47,5 @@ def model_column_route(
         )
     except VariableUnavailableError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
-    except OutOfRegionError as e:
+    except (OutOfRegionError, InvalidDateError) as e:
         raise HTTPException(status_code=422, detail=str(e)) from e

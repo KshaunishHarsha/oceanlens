@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg-deep: #03101c;
+        --bg-mid: #061c30;
+        --ink: #eaf4fb;
+        --ink-soft: #8fb2c8;
+        --ink-faint: #4d7690;
+        --cyan: #35e0e8;
+        --cyan-deep: #1b8fa6;
+        --slab-1: #0d3a55;
+        --slab-2: #12506f;
+        --slab-3: #17688a;
+        --slab-4: #1d81a4;
+        --slab-5: #249bbd;
+        --amber: #f5b544;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #03101c;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background:
+          radial-gradient(ellipse 1400px 900px at 50% 42%, #072438 0%, #03101c 70%);
+        font-family: Inter, "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+        color: #eaf4fb;
+      }
+
+      /* ---------- backdrop depth grid ---------- */
+      #grid {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+      }
+      .gridline {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          rgba(53, 224, 232, 0) 0%,
+          rgba(53, 224, 232, 0.16) 22%,
+          rgba(53, 224, 232, 0.16) 78%,
+          rgba(53, 224, 232, 0) 100%
+        );
+      }
+      #vignette {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse 1100px 700px at 50% 46%,
+          rgba(0, 0, 0, 0) 40%,
+          rgba(3, 16, 28, 0.85) 100%
+        );
+      }
+
+      /* ---------- stage ---------- */
+      #stage-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 120px 160px;
+        gap: 0;
+      }
+
+      /* ---------- mark: stacked depth slices ---------- */
+      #mark {
+        position: relative;
+        width: 300px;
+        height: 168px;
+        margin-bottom: 58px;
+      }
+      .slab {
+        position: absolute;
+        left: 50%;
+        height: 22px;
+        border-radius: 3px;
+        transform: translateX(-50%);
+      }
+      #slab1 { top: 0px;   width: 300px; background: var(--slab-5); }
+      #slab2 { top: 30px;  width: 272px; background: var(--slab-4); }
+      #slab3 { top: 60px;  width: 240px; background: var(--slab-3); }
+      #slab4 { top: 90px;  width: 202px; background: var(--slab-2); }
+      #slab5 { top: 120px; width: 158px; background: var(--slab-1); }
+
+      /* the observation float descending through the model slices */
+      #float-dot {
+        position: absolute;
+        left: 50%;
+        top: 49px;
+        width: 26px;
+        height: 26px;
+        margin-left: -13px;
+        border-radius: 50%;
+        background: var(--cyan);
+        box-shadow: 0 0 34px rgba(53, 224, 232, 0.72);
+      }
+      #float-ring {
+        position: absolute;
+        left: 50%;
+        top: 49px;
+        width: 26px;
+        height: 26px;
+        margin-left: -13px;
+        border-radius: 50%;
+        border: 2px solid var(--cyan);
+      }
+      #float-stem {
+        position: absolute;
+        left: 50%;
+        top: 62px;
+        margin-left: -1px;
+        width: 2px;
+        height: 96px;
+        background: linear-gradient(
+          180deg,
+          rgba(53, 224, 232, 0.85) 0%,
+          rgba(53, 224, 232, 0) 100%
+        );
+        transform-origin: top center;
+      }
+
+      /* ---------- wordmark ---------- */
+      #wordmark {
+        display: flex;
+        align-items: baseline;
+        gap: 22px;
+        margin-bottom: 30px;
+      }
+      .word {
+        display: inline-block;
+        font-size: 104px;
+        font-weight: 600;
+        letter-spacing: -0.035em;
+        line-height: 1;
+        white-space: nowrap;
+      }
+      #w-ocean { color: var(--ink); }
+      #w-india {
+        color: var(--cyan);
+        font-weight: 400;
+      }
+      .wipe {
+        display: inline-block;
+        clip-path: inset(0 0 0 0);
+      }
+
+      /* ---------- rule ---------- */
+      #rule {
+        width: 640px;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          rgba(53, 224, 232, 0) 0%,
+          rgba(53, 224, 232, 0.65) 18%,
+          rgba(53, 224, 232, 0.65) 82%,
+          rgba(53, 224, 232, 0) 100%
+        );
+        transform-origin: center center;
+        margin-bottom: 34px;
+      }
+
+      /* ---------- tagline ---------- */
+      #tagline {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        margin-bottom: 26px;
+      }
+      .tag-word {
+        display: inline-block;
+        font-size: 30px;
+        font-weight: 500;
+        letter-spacing: 0.26em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+      }
+      .tag-dot {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--cyan-deep);
+      }
+
+      /* ---------- subline ---------- */
+      #subline {
+        font-size: 23px;
+        font-weight: 400;
+        letter-spacing: 0.04em;
+        color: #6f95ac;
+      }
+
+      /* ---------- badge ---------- */
+      #badge {
+        position: absolute;
+        left: 50%;
+        bottom: 96px;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 11px 24px;
+        border: 1px solid rgba(53, 224, 232, 0.28);
+        border-radius: 999px;
+        background: rgba(53, 224, 232, 0.05);
+      }
+      #badge .bdot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--cyan);
+      }
+      #badge .btext {
+        font-size: 17px;
+        font-weight: 500;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: #9fc4d6;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="6.5"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div id="scene" class="clip" data-start="0" data-duration="6.5" data-track-index="0">
+        <div id="grid">
+          <div class="gridline" style="top: 300px"></div>
+          <div class="gridline" style="top: 420px"></div>
+          <div class="gridline" style="top: 540px"></div>
+          <div class="gridline" style="top: 660px"></div>
+          <div class="gridline" style="top: 780px"></div>
+        </div>
+
+        <div id="vignette"></div>
+
+        <div id="stage-inner">
+          <div id="mark">
+            <div class="slab" id="slab1"></div>
+            <div class="slab" id="slab2"></div>
+            <div class="slab" id="slab3"></div>
+            <div class="slab" id="slab4"></div>
+            <div class="slab" id="slab5"></div>
+            <div id="float-stem"></div>
+            <div id="float-ring"></div>
+            <div id="float-dot"></div>
+          </div>
+
+          <div id="wordmark">
+            <span class="wipe"><span class="word" id="w-ocean">OceanLens</span></span>
+            <span class="wipe"><span class="word" id="w-india">India</span></span>
+          </div>
+
+          <div id="rule"></div>
+
+          <div id="tagline">
+            <span class="tag-word">Model</span>
+            <span class="tag-dot"></span>
+            <span class="tag-word">Observation</span>
+            <span class="tag-dot"></span>
+            <span class="tag-word">Agreement</span>
+          </div>
+
+          <div id="subline">A browser-native 3D ocean evidence workspace</div>
+        </div>
+
+        <div id="badge">
+          <span class="bdot"></span>
+          <span class="btext">Smart India Hackathon 2026</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      // --- backdrop ---
+      tl.fromTo("#grid", { autoAlpha: 0 }, { autoAlpha: 1, duration: 1.0, ease: "sine.out" }, 0);
+      tl.fromTo(
+        ".gridline",
+        { scaleX: 0.2, transformOrigin: "center center" },
+        { scaleX: 1, duration: 1.4, ease: "expo.out", stagger: 0.07 },
+        0.05
+      );
+
+      // --- mark: depth slices slide in, widest first ---
+      tl.fromTo(
+        ".slab",
+        { autoAlpha: 0, x: -140, scaleX: 0.72, transformOrigin: "left center" },
+        {
+          autoAlpha: 1,
+          x: 0,
+          scaleX: 1,
+          duration: 0.95,
+          ease: "expo.out",
+          stagger: 0.075,
+        },
+        0.18
+      );
+
+      // --- observation float descends through the slices ---
+      tl.fromTo(
+        "#float-dot",
+        { autoAlpha: 0, y: -150, scale: 0.4 },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 0.85, ease: "power3.out" },
+        0.82
+      );
+      tl.fromTo(
+        "#float-stem",
+        { autoAlpha: 0, scaleY: 0 },
+        { autoAlpha: 1, scaleY: 1, duration: 0.7, ease: "power2.out" },
+        1.18
+      );
+      tl.fromTo(
+        "#float-ring",
+        { autoAlpha: 0.95, scale: 1 },
+        { autoAlpha: 0, scale: 4.6, duration: 1.15, ease: "power2.out" },
+        1.32
+      );
+
+      // --- wordmark wipe reveal ---
+      tl.fromTo(
+        "#w-ocean",
+        { autoAlpha: 0, clipPath: "inset(0 100% 0 0)", y: 18 },
+        {
+          autoAlpha: 1,
+          clipPath: "inset(0 0% 0 0)",
+          y: 0,
+          duration: 0.85,
+          ease: "expo.out",
+        },
+        1.48
+      );
+      tl.fromTo(
+        "#w-india",
+        { autoAlpha: 0, clipPath: "inset(0 100% 0 0)", y: 18 },
+        {
+          autoAlpha: 1,
+          clipPath: "inset(0 0% 0 0)",
+          y: 0,
+          duration: 0.8,
+          ease: "expo.out",
+        },
+        1.82
+      );
+
+      // --- rule draws ---
+      tl.fromTo(
+        "#rule",
+        { autoAlpha: 0, scaleX: 0 },
+        { autoAlpha: 1, scaleX: 1, duration: 0.8, ease: "power3.inOut" },
+        2.32
+      );
+
+      // --- tagline ---
+      tl.fromTo(
+        "#tagline .tag-word",
+        { autoAlpha: 0, y: 16 },
+        { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.out", stagger: 0.11 },
+        2.6
+      );
+      tl.fromTo(
+        "#tagline .tag-dot",
+        { autoAlpha: 0, scale: 0 },
+        { autoAlpha: 1, scale: 1, duration: 0.5, ease: "back.out(2.2)", stagger: 0.11 },
+        2.72
+      );
+
+      // --- subline ---
+      tl.fromTo(
+        "#subline",
+        { autoAlpha: 0, y: 14 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: "power2.out" },
+        3.32
+      );
+
+      // --- badge ---
+      tl.fromTo(
+        "#badge",
+        { autoAlpha: 0, y: 22 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: "power2.out" },
+        3.9
+      );
+      tl.fromTo(
+        "#badge .bdot",
+        { autoAlpha: 0.25 },
+        { autoAlpha: 1, duration: 0.9, ease: "sine.inOut" },
+        4.3
+      );
+
+      // --- slow settle on the whole lockup through the hold ---
+      tl.fromTo(
+        "#stage-inner",
+        { scale: 1 },
+        { scale: 1.022, duration: 2.5, ease: "sine.inOut" },
+        4.0
+      );
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

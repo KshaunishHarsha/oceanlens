@@ -25,8 +25,14 @@ def haversine_km(a: GeoPoint, b: GeoPoint) -> float:
 
 def _iso_to_epoch(iso: str) -> float:
     from datetime import datetime
+    from app.errors import InvalidDateError
 
-    return datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp()
+    try:
+        return datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp()
+    except (ValueError, TypeError, AttributeError) as e:
+        raise InvalidDateError(
+            f"invalid date format: '{iso}'. Expected ISO 8601 string (e.g. 2023-09-25T00:00:00Z)"
+        ) from e
 
 
 def nearest_timestamp_index(timestamps: list[str], target_iso: str) -> int:

@@ -13,6 +13,9 @@ from app.models.observations import (
 from app.services.provenance_service import source_descriptor
 
 
+from app.errors import InvalidDateError
+
+
 def _to_identity(raw: dict) -> PlatformIdentity:
     ident = raw["identity"]
     return PlatformIdentity(
@@ -31,8 +34,13 @@ def _to_identity(raw: dict) -> PlatformIdentity:
     )
 
 
-def _parse_iso(s: str) -> datetime:
-    return datetime.fromisoformat(s.replace("Z", "+00:00"))
+def _parse_iso(s: str, field_name: str = "date") -> datetime:
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except (ValueError, TypeError, AttributeError) as e:
+        raise InvalidDateError(
+            f"invalid date format for {field_name}: '{s}'. Expected ISO 8601 string (e.g. 2023-09-25T00:00:00Z)"
+        ) from e
 
 
 def list_observations(
@@ -49,8 +57,8 @@ def list_observations(
     max_lon: float | None = None,
     collocated_only: bool = False,
 ) -> ObservationsListResponse:
-    from_dt = _parse_iso(from_time) if from_time else None
-    to_dt = _parse_iso(to_time) if to_time else None
+    from_dt = _parse_iso(from_time, "from_time") if from_time else None
+    to_dt = _parse_iso(to_time, "to_time") if to_time else None
 
     def keep(raw: dict) -> bool:
         if platform_types and raw["platformType"] not in platform_types:

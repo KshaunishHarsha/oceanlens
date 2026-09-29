@@ -79,3 +79,13 @@ def test_never_returns_a_synthetic_observation(client, cache):
     ids = {o["id"] for o in r.json()["observations"]}
     assert ids == set(cache.profiles_by_id.keys())
     assert all(not i.startswith("FIXTURE") for i in ids)
+
+
+def test_invalid_date_filters_return_422(client):
+    r1 = client.get("/api/v1/observations?from_time=garbage")
+    assert r1.status_code == 422
+    assert "invalid date" in r1.json()["detail"].lower()
+
+    r2 = client.get("/api/v1/observations?to_time=not-a-date")
+    assert r2.status_code == 422
+    assert "invalid date" in r2.json()["detail"].lower()

@@ -11,8 +11,11 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.errors import InvalidDateError
 
 from app.api import (
     routes_collocation,
@@ -62,6 +65,14 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(InvalidDateError)
+async def invalid_date_handler(_request: Request, exc: InvalidDateError) -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={"detail": str(exc)},
+    )
 
 app.include_router(routes_health.router)
 app.include_router(routes_metadata.router)

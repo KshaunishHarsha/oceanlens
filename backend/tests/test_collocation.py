@@ -108,3 +108,11 @@ def test_collocation_temperature_and_salinity_are_unaffected_by_the_fix(client):
         body = r.json()
         assert body["sample_count"] > 0
         assert body["rmse"] is not None
+
+
+def test_collocation_invalid_timestamp_returns_422(client):
+    r = client.get(
+        "/api/v1/collocation/ARGO-5907083-2?variable=temperature&timestamp=not-a-timestamp"
+    )
+    assert r.status_code == 422
+    assert "invalid date" in r.json()["detail"].lower()
