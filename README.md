@@ -6,8 +6,6 @@ they agree — in one scene, with provenance and quality flags always visible.
 
 **Demo video:** [Watch on YouTube](https://youtu.be/JT6XJFPMCFI)
 
-[![OceanLens India demo video](https://img.youtube.com/vi/JT6XJFPMCFI/hqdefault.jpg)](https://youtu.be/JT6XJFPMCFI)
-
 ![The 3D evidence scene](slides/screenshots/slide1-fig1-3d-scene.png)
 
 *A real, depth-referenced 3D scene. Every marker is a clickable Argo float; the slice plane sits at
